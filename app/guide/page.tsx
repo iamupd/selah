@@ -26,16 +26,35 @@ export default function GuidePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-gray-700">
-              콘티 수정 및 관리 기능을 사용하려면 Google 계정으로 로그인해야 합니다.
+              콘티 수정 및 관리 기능을 사용하려면 회원가입 후 로그인해야 합니다.
             </p>
             <ol className="list-decimal list-inside space-y-2 text-gray-700 ml-4">
               <li>첫 화면에서 <strong>"로그인"</strong> 버튼 클릭</li>
-              <li>Google 계정 선택 및 인증</li>
+              <li>
+                <strong>회원가입 (처음 사용하는 경우):</strong>
+                <ul className="list-disc list-inside ml-6 mt-1 space-y-1">
+                  <li><strong>"회원가입"</strong> 버튼 클릭</li>
+                  <li>이메일, 비밀번호(6자 이상, 특수문자 포함), 이름, 소속 찬양팀명 입력</li>
+                  <li><strong>"회원가입"</strong> 버튼 클릭하여 계정 생성</li>
+                </ul>
+              </li>
+              <li>
+                <strong>로그인 (이미 계정이 있는 경우):</strong>
+                <ul className="list-disc list-inside ml-6 mt-1 space-y-1">
+                  <li>이메일과 비밀번호 입력</li>
+                  <li><strong>"로그인"</strong> 버튼 클릭</li>
+                </ul>
+              </li>
               <li>로그인 완료 후 자동으로 메인 페이지로 이동</li>
             </ol>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
                 <strong>참고:</strong> 로그인하지 않아도 콘티 보기와 공유는 가능합니다.
+              </p>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="text-sm text-yellow-800">
+                <strong>비밀번호 규칙:</strong> 6자 이상, 특수문자 포함 필수
               </p>
             </div>
           </CardContent>
@@ -272,7 +291,8 @@ export default function GuidePage() {
                 <strong>문제가 발생했나요?</strong>
               </p>
               <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>로그인이 안 되나요? → Supabase Dashboard에서 Google Provider가 활성화되어 있는지 확인하세요.</li>
+                <li>로그인이 안 되나요? → 이메일과 비밀번호가 올바른지 확인하세요. 비밀번호는 6자 이상, 특수문자 포함이 필요합니다.</li>
+                <li>회원가입이 안 되나요? → 이미 사용 중인 이메일인지 확인하세요. 비밀번호 규칙을 만족하는지 확인하세요.</li>
                 <li>이미지가 업로드되지 않나요? → 이미지 파일 형식(jpg, png 등)을 확인하세요.</li>
                 <li>콘티를 수정할 수 없나요? → 본인이 작성한 콘티인지 확인하세요.</li>
               </ul>
