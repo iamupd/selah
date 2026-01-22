@@ -198,7 +198,10 @@ export default function SetlistViewPage() {
       })
 
       if (!response.ok) {
-        throw new Error('저장 실패')
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Save error response:', errorData)
+        const errorMessage = errorData.error || errorData.message || `저장 실패 (${response.status})`
+        throw new Error(errorMessage)
       }
 
       const updatedSetlist = await response.json()
@@ -217,7 +220,8 @@ export default function SetlistViewPage() {
       })
     } catch (error) {
       console.error('Save error:', error)
-      alert('설명 저장에 실패했습니다.')
+      const errorMessage = error instanceof Error ? error.message : '저장에 실패했습니다.'
+      alert(`저장 실패: ${errorMessage}\n\n브라우저 콘솔을 확인해주세요.`)
     } finally {
       setIsSaving(false)
     }

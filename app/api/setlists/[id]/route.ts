@@ -97,6 +97,12 @@ export async function PUT(
 
   // 2) setlist_songs 업데이트 (전체 재작성)
   if (Array.isArray(songs)) {
+    // 기존 곡 정보 가져오기 (youtube_url 보존을 위해)
+    const { data: existingSongs } = await supabase
+      .from('setlist_songs')
+      .select('id, song_id, song_order, youtube_url')
+      .eq('setlist_id', id)
+
     // 기존 곡 모두 삭제
     const { error: deleteError } = await supabase
       .from('setlist_songs')
@@ -108,13 +114,20 @@ export async function PUT(
     }
 
     if (songs.length > 0) {
+      // 기존 youtube_url 정보를 유지하면서 새 payload 생성
       const payload = songs.map((s, index) => {
         const songItem = s as { song_id: string; youtube_url?: string | null }
+        // 기존 곡에서 youtube_url 찾기
+        const existingSong = existingSongs?.find(
+          (es) => es.song_id === songItem.song_id && es.song_order === index + 1
+        )
         return {
           setlist_id: id,
           song_id: songItem.song_id,
           song_order: index + 1,
-          youtube_url: songItem.youtube_url || null,
+          youtube_url: songItem.youtube_url !== undefined 
+            ? (songItem.youtube_url || null)
+            : (existingSong?.youtube_url || null),
         }
       })
 
