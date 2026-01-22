@@ -90,7 +90,7 @@ npm run dev
 │   └── ui/                # UI 컴포넌트
 ├── lib/                   # 유틸리티 및 설정
 │   ├── supabase/          # Supabase 클라이언트
-│   └── google-drive.ts    # Google Drive API
+│   └── utils.ts           # 공통 유틸리티 함수
 ├── types/                 # TypeScript 타입 정의
 └── supabase/              # Supabase 마이그레이션
 ```

@@ -44,7 +44,7 @@ Next.js는 **풀스택 프레임워크**입니다:
     ├── supabase/
     │   ├── server.ts     # 서버 사이드 Supabase 클라이언트
     │   └── client.ts     # 클라이언트 사이드 Supabase 클라이언트
-    └── google-drive.ts   # Google Drive API 함수
+    └── utils.ts           # 공통 유틸리티 함수
 ```
 
 ---

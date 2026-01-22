@@ -22,11 +22,12 @@ export default function Home() {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [ripples, setRipples] = useState<Ripple[]>([]);
 
+  // 이미지 URL 결정: 환경 변수 우선, 없으면 로컬 경로
+  const imageUrl = process.env.NEXT_PUBLIC_BACKGROUND_IMAGE_URL || '/selah.jpg';
+
   // 이미지 preload 및 로딩 상태 관리 (즉시 시작)
   useEffect(() => {
     const img = new Image();
-    // 이미지 URL에 타임스탬프를 추가하여 캐시 무효화 방지 (필요시)
-    const imageUrl = '/selah.jpg';
     
     // decode()를 사용하여 이미지 디코딩을 비동기로 처리
     if (img.decode) {
@@ -59,7 +60,7 @@ export default function Home() {
       };
       img.src = imageUrl;
     }
-  }, []);
+  }, [imageUrl]);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -104,7 +105,7 @@ export default function Home() {
       className="min-h-screen bg-cover bg-center bg-no-repeat flex items-center justify-center relative"
       style={{
         backgroundImage: imageLoaded
-          ? `linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.65)), url('/selah.jpg')`
+          ? `linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.65)), url('${imageUrl}')`
           : undefined,
         backgroundColor: imageLoaded ? undefined : '#1a1a1a',
         backgroundSize: 'cover',
