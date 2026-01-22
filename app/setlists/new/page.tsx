@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Plus, X, Search, Loader2 } from 'lucide-react'
 import { Song } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
+import YouTubePlayer, { isValidYouTubeUrl } from '@/components/ui/youtube-player'
 
 export default function NewSetlistPage() {
   const router = useRouter()
@@ -20,7 +21,7 @@ export default function NewSetlistPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Song[]>([])
   const [isSearching, setIsSearching] = useState(false)
-  const [selectedSongs, setSelectedSongs] = useState<Array<{ song_id: string; song: Song }>>([])
+  const [selectedSongs, setSelectedSongs] = useState<Array<{ song_id: string; song: Song; youtube_url: string }>>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [checkingRole, setCheckingRole] = useState(true)
@@ -30,7 +31,7 @@ export default function NewSetlistPage() {
     const checkUserRole = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        
+
         if (!session?.user) {
           router.push('/auth')
           return
@@ -46,7 +47,7 @@ export default function NewSetlistPage() {
           setUserRole(null)
         } else {
           setUserRole(profile.role)
-          
+
           // 인도자가 아니면 콘티 목록으로 리다이렉트
           if (profile.role !== '인도자') {
             router.push('/setlists')
@@ -91,7 +92,7 @@ export default function NewSetlistPage() {
 
   const handleAddSong = (song: Song) => {
     if (!selectedSongs.find((s) => s.song_id === song.id)) {
-      setSelectedSongs([...selectedSongs, { song_id: song.id, song }])
+      setSelectedSongs([...selectedSongs, { song_id: song.id, song, youtube_url: '' }])
       setSearchQuery('')
       setSearchResults([])
     }
@@ -99,6 +100,12 @@ export default function NewSetlistPage() {
 
   const handleRemoveSong = (songId: string) => {
     setSelectedSongs(selectedSongs.filter((s) => s.song_id !== songId))
+  }
+
+  const handleYouTubeUrlChange = (songId: string, url: string) => {
+    setSelectedSongs(selectedSongs.map((s) =>
+      s.song_id === songId ? { ...s, youtube_url: url } : s
+    ))
   }
 
   const handleConfirm = async () => {
@@ -120,6 +127,7 @@ export default function NewSetlistPage() {
           description: description || null,
           songs: selectedSongs.map((s) => ({
             song_id: s.song_id,
+            youtube_url: s.youtube_url || null,
           })),
         }),
       })
@@ -127,13 +135,13 @@ export default function NewSetlistPage() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         const errorMessage = errorData.error || '등록 실패'
-        
+
         if (response.status === 403) {
           alert(errorMessage)
           router.push('/setlists')
           return
         }
-        
+
         throw new Error(errorMessage)
       }
 
@@ -312,11 +320,11 @@ export default function NewSetlistPage() {
                   검색창에서 곡을 검색하여 추가하세요
                 </p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-4">
                   {selectedSongs.map((item, index) => (
                     <div
                       key={item.song_id}
-                      className="p-2 md:p-3 border border-gray-200 rounded-lg space-y-2"
+                      className="p-3 md:p-4 border border-gray-200 rounded-lg space-y-3"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
@@ -335,6 +343,34 @@ export default function NewSetlistPage() {
                         >
                           <X className="h-4 w-4" />
                         </button>
+                      </div>
+
+                      {/* YouTube 링크 입력 */}
+                      <div className="space-y-2">
+                        <label className="block text-xs text-gray-600">
+                          YouTube 링크 (선택사항)
+                        </label>
+                        <Input
+                          type="url"
+                          value={item.youtube_url}
+                          onChange={(e) => handleYouTubeUrlChange(item.song_id, e.target.value)}
+                          placeholder="https://www.youtube.com/watch?v=..."
+                          className="text-sm"
+                        />
+                        {item.youtube_url && isValidYouTubeUrl(item.youtube_url) && (
+                          <div className="mt-2">
+                            <YouTubePlayer
+                              url={item.youtube_url}
+                              title={item.song.title}
+                              className="max-w-md"
+                            />
+                          </div>
+                        )}
+                        {item.youtube_url && !isValidYouTubeUrl(item.youtube_url) && (
+                          <p className="text-xs text-red-500">
+                            유효하지 않은 YouTube URL입니다.
+                          </p>
+                        )}
                       </div>
                     </div>
                   ))}

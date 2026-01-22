@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     date: string
     name: string
     description?: string | null
-    songs?: Array<{ song_id: string }>
+    songs?: Array<{ song_id: string; youtube_url?: string }>
   }
 
   if (!date || !name) {
@@ -79,6 +79,7 @@ export async function POST(request: Request) {
       setlist_id: setlist.id,
       song_id: song.song_id,
       song_order: index + 1,
+      youtube_url: song.youtube_url || null,
     }))
 
     const { error: songsError } = await supabase

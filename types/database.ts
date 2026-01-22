@@ -31,5 +31,6 @@ export interface SetlistSong {
   setlist_id: string
   song_id: string
   song_order: number
+  youtube_url?: string
   song?: Song
 }

@@ -9,10 +9,12 @@ import { Loader2, Search, X, Share2, XCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import { Song } from '@/types/database'
+import YouTubePlayer, { isValidYouTubeUrl } from '@/components/ui/youtube-player'
 
 interface SetlistSong {
   id: string
   song_order: number
+  youtube_url?: string
   song?: Song
 }
 
@@ -35,7 +37,7 @@ export default function SetlistViewPage() {
   const [description, setDescription] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [selectedSongs, setSelectedSongs] = useState<
-    Array<{ id?: string; song_id: string; song: Song }>
+    Array<{ id?: string; song_id: string; song: Song; youtube_url: string }>
   >([])
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Song[]>([])
@@ -90,6 +92,7 @@ export default function SetlistViewPage() {
               id: s.id,
               song_id: s.song?.id ?? '',
               song: s.song as Song,
+              youtube_url: s.youtube_url || '',
             })) ?? []
           setSelectedSongs(incomingSongs)
         }
@@ -188,6 +191,7 @@ export default function SetlistViewPage() {
           description,
           songs: selectedSongs.map((s) => ({
             song_id: s.song_id,
+            youtube_url: s.youtube_url || null,
           })),
         }),
       })
@@ -251,13 +255,19 @@ export default function SetlistViewPage() {
 
   const handleAddSong = (song: Song) => {
     if (selectedSongs.find((s) => s.song_id === song.id)) return
-    setSelectedSongs([...selectedSongs, { song_id: song.id, song }])
+    setSelectedSongs([...selectedSongs, { song_id: song.id, song, youtube_url: '' }])
     setSearchQuery('')
     setSearchResults([])
   }
 
   const handleRemoveSong = (songId: string) => {
     setSelectedSongs(selectedSongs.filter((s) => s.song_id !== songId))
+  }
+
+  const handleYouTubeUrlChange = (songId: string, url: string) => {
+    setSelectedSongs(selectedSongs.map((s) =>
+      s.song_id === songId ? { ...s, youtube_url: url } : s
+    ))
   }
 
   const handleShare = () => {
@@ -467,6 +477,47 @@ export default function SetlistViewPage() {
                                 className="w-full rounded-lg border border-gray-200 max-h-64 md:max-h-96 object-contain bg-gray-50 cursor-pointer hover:opacity-90 transition-opacity"
                                 loading="lazy"
                               />
+                            </div>
+                          )}
+
+                          {/* YouTube 플레이어 (보기 모드) */}
+                          {!isEditMode && item.youtube_url && isValidYouTubeUrl(item.youtube_url) && (
+                            <div className="mt-3">
+                              <label className="block text-xs text-gray-600 mb-2">YouTube 영상</label>
+                              <YouTubePlayer
+                                url={item.youtube_url}
+                                title={song?.title || 'YouTube'}
+                              />
+                            </div>
+                          )}
+
+                          {/* YouTube 링크 입력 (편집 모드) */}
+                          {isEditMode && (
+                            <div className="mt-3 space-y-2">
+                              <label className="block text-xs text-gray-600">
+                                YouTube 링크 (선택사항)
+                              </label>
+                              <Input
+                                type="url"
+                                value={item.youtube_url}
+                                onChange={(e) => handleYouTubeUrlChange(item.song_id, e.target.value)}
+                                placeholder="https://www.youtube.com/watch?v=..."
+                                className="text-sm"
+                              />
+                              {item.youtube_url && isValidYouTubeUrl(item.youtube_url) && (
+                                <div className="mt-2">
+                                  <YouTubePlayer
+                                    url={item.youtube_url}
+                                    title={song?.title || 'YouTube'}
+                                    className="max-w-md"
+                                  />
+                                </div>
+                              )}
+                              {item.youtube_url && !isValidYouTubeUrl(item.youtube_url) && (
+                                <p className="text-xs text-red-500">
+                                  유효하지 않은 YouTube URL입니다.
+                                </p>
+                              )}
                             </div>
                           )}
                         </div>

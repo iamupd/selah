@@ -37,7 +37,7 @@ export async function GET(
   const { data: setlistSongs, error: songsError } = await supabase
     .from('setlist_songs')
     // song 별칭으로 반환해 프론트에서 일관되게 접근
-    .select('id, setlist_id, song_order, song:songs!inner(*)')
+    .select('id, setlist_id, song_order, youtube_url, song:songs!inner(*)')
     .eq('setlist_id', id)
     .order('song_order', { ascending: true })
 
@@ -70,7 +70,7 @@ export async function PUT(
 
   const { description, songs } = body as {
     description?: string
-    songs?: Array<{ song_id: string }>
+    songs?: Array<{ song_id: string; youtube_url?: string }>
   }
 
   // 1) setlists 테이블 업데이트 (description만) - RLS가 작성자만 허용
@@ -109,11 +109,12 @@ export async function PUT(
 
     if (songs.length > 0) {
       const payload = songs.map((s, index) => {
-        const songItem = s as { song_id: string }
+        const songItem = s as { song_id: string; youtube_url?: string }
         return {
           setlist_id: id,
           song_id: songItem.song_id,
           song_order: index + 1,
+          youtube_url: songItem.youtube_url || null,
         }
       })
 
@@ -125,7 +126,7 @@ export async function PUT(
         console.error('Insert error:', insertError)
         console.error('Payload:', payload)
         return NextResponse.json(
-          { 
+          {
             error: insertError.message,
             details: insertError.details,
             hint: insertError.hint,
@@ -149,7 +150,7 @@ export async function PUT(
 
   const { data: setlistSongs, error: songsError } = await supabase
     .from('setlist_songs')
-    .select('id, setlist_id, song_order, song:songs!inner(*)')
+    .select('id, setlist_id, song_order, youtube_url, song:songs!inner(*)')
     .eq('setlist_id', id)
     .order('song_order', { ascending: true })
 
