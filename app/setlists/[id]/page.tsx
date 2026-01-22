@@ -254,7 +254,7 @@ export default function SetlistViewPage() {
 
   const handleAddSong = (song: Song) => {
     if (selectedSongs.find((s) => s.song_id === song.id)) return
-    setSelectedSongs([...selectedSongs, { song_id: song.id, song, youtube_url: '' }])
+    setSelectedSongs([...selectedSongs, { song_id: song.id, song }])
     setSearchQuery('')
     setSearchResults([])
   }
