@@ -22,40 +22,80 @@ function AuthPageContent() {
   const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
+    let isMounted = true
+    
     const fetchSession = async () => {
-      const { data, error } = await supabase.auth.getSession()
-      if (!error && data.session?.user) {
-        setProfile({ email: data.session.user.email ?? undefined })
-        // 세션이 있으면 자동으로 dashboard로 리다이렉트
-        const next = searchParams.get('next') || '/dashboard'
-        router.push(next)
-        return
-      } else {
-        setProfile(null)
+      try {
+        const { data, error } = await supabase.auth.getSession()
+        
+        if (!isMounted) return
+        
+        if (!error && data.session?.user) {
+          setProfile({ email: data.session.user.email ?? undefined })
+          // 세션이 있으면 자동으로 dashboard로 리다이렉트
+          const next = searchParams.get('next') || '/dashboard'
+          router.push(next)
+          return
+        } else {
+          setProfile(null)
+        }
+      } catch (err) {
+        console.error('Session fetch error:', err)
+        if (isMounted) {
+          setProfile(null)
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
       }
-      setLoading(false)
     }
 
+    // 타임아웃 안전장치 (5초 후 강제로 로딩 해제)
+    const timeoutId = setTimeout(() => {
+      if (isMounted) {
+        console.warn('Session fetch timeout, showing login button')
+        setLoading(false)
+      }
+    }, 5000)
+
     fetchSession()
+
+    return () => {
+      isMounted = false
+      clearTimeout(timeoutId)
+    }
   }, [supabase, router, searchParams])
 
   const handleSignIn = async () => {
-    const envUrl = process.env.NEXT_PUBLIC_APP_URL;
-    const origin = (envUrl && !envUrl.includes('localhost')) ? envUrl : window.location.origin;
-    const redirectTo = `${origin}/auth/callback?next=/dashboard`
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo,
-      },
-    })
-    if (error) {
-      // Google Provider가 활성화되지 않은 경우 더 명확한 메시지 표시
-      if (error.message.includes('provider is not enabled') || error.message.includes('Unsupported provider')) {
-        setErrorMessage('Google 로그인이 설정되지 않았습니다. Supabase Dashboard에서 Google Provider를 활성화해주세요. 자세한 내용은 SUPABASE_AUTH_SETUP.md 파일을 참고하세요.')
-      } else {
-        setErrorMessage(error.message)
+    try {
+      setErrorMessage(null)
+      const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+      const origin = (envUrl && !envUrl.includes('localhost')) ? envUrl : window.location.origin;
+      const next = searchParams.get('next') || '/dashboard'
+      const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(next)}`
+      
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+        },
+      })
+      
+      if (error) {
+        // Google Provider가 활성화되지 않은 경우 더 명확한 메시지 표시
+        if (error.message.includes('provider is not enabled') || error.message.includes('Unsupported provider')) {
+          setErrorMessage('Google 로그인이 설정되지 않았습니다. Supabase Dashboard에서 Google Provider를 활성화해주세요. 자세한 내용은 SUPABASE_AUTH_SETUP.md 파일을 참고하세요.')
+        } else {
+          setErrorMessage(`로그인 오류: ${error.message}`)
+        }
+        console.error('Sign in error:', error)
       }
+      // 에러가 없으면 OAuth 리다이렉트가 시작되므로 여기서는 아무것도 하지 않음
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.'
+      setErrorMessage(`로그인 중 오류가 발생했습니다: ${errorMessage}`)
+      console.error('Sign in exception:', err)
     }
   }
 
@@ -81,7 +121,10 @@ function AuthPageContent() {
           )}
 
           {loading ? (
-            <p className="text-sm text-gray-600">세션 확인 중...</p>
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600">세션 확인 중...</p>
+              <p className="text-xs text-gray-400">잠시만 기다려주세요...</p>
+            </div>
           ) : profile ? (
             <div className="space-y-3">
               <p className="text-sm text-gray-700">

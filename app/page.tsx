@@ -63,30 +63,69 @@ export default function Home() {
   }, [imageUrl]);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (!error && data.session?.user) {
-        setProfile({ email: data.session.user.email ?? undefined });
-      } else {
-        setProfile(null);
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (!isMounted) return;
+
+        if (!error && data.session?.user) {
+          setProfile({ email: data.session.user.email ?? undefined });
+        } else {
+          setProfile(null);
+        }
+      } catch (err) {
+        console.error('Session fetch error:', err);
+        if (isMounted) {
+          setProfile(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
     };
+
+    // 타임아웃 안전장치 (3초 후 강제로 로딩 해제)
+    const timeoutId = setTimeout(() => {
+      if (isMounted) {
+        console.warn('Session fetch timeout, showing default UI');
+        setLoading(false);
+      }
+    }, 3000);
+
     fetchSession();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [supabase]);
 
   const handleSignIn = async () => {
-    const envUrl = process.env.NEXT_PUBLIC_APP_URL;
-    const origin = (envUrl && !envUrl.includes('localhost')) ? envUrl : window.location.origin;
-    const redirectTo = `${origin}/auth/callback?next=/dashboard`;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-      },
-    });
-    if (error) {
-      console.error("Login error:", error);
+    try {
+      const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+      const origin = (envUrl && !envUrl.includes('localhost')) ? envUrl : window.location.origin;
+      const redirectTo = `${origin}/auth/callback?next=/dashboard`;
+      
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+        },
+      });
+      
+      if (error) {
+        console.error("Login error:", error);
+        alert(`로그인 오류: ${error.message}`);
+      }
+      // 에러가 없으면 OAuth 리다이렉트가 시작되므로 여기서는 아무것도 하지 않음
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
+      console.error("Login exception:", err);
+      alert(`로그인 중 오류가 발생했습니다: ${errorMessage}`);
     }
   };
 
@@ -138,10 +177,21 @@ export default function Home() {
           <h1 className="text-3xl md:text-5xl font-bold leading-tight">
             "Selah"
           </h1>
-          {!loading && profile && (
-            <p className="text-sm md:text-base text-gray-200">
-              로그인됨: <span className="font-semibold">{profile.email}</span>
-            </p>
+          {!loading && (
+            profile ? (
+              <div className="space-y-2">
+                <p className="text-sm md:text-base text-gray-200">
+                  로그인됨
+                </p>
+                <p className="text-base md:text-lg text-white font-semibold">
+                  {profile.email}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm md:text-base text-gray-300">
+                로그인하여 콘티 관리 기능을 이용하세요
+              </p>
+            )
           )}
         </div>
 
