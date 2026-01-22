@@ -25,17 +25,27 @@ export default function Navbar() {
         
         if (!error && data.session?.user) {
           // 프로필 정보 가져오기
-          const { data: profileData } = await supabase
+          const { data: profileData, error: profileError } = await supabase
             .from('user_profiles')
             .select('name, team_name')
             .eq('id', data.session.user.id)
             .single()
           
-          setProfile({ 
-            email: data.session.user.email ?? undefined,
-            name: profileData?.name,
-            team_name: profileData?.team_name,
-          })
+          if (profileError) {
+            console.error('Profile fetch error:', profileError)
+            // 프로필이 없어도 이메일은 표시
+            setProfile({ 
+              email: data.session.user.email ?? undefined,
+              name: undefined,
+              team_name: undefined,
+            })
+          } else {
+            setProfile({ 
+              email: data.session.user.email ?? undefined,
+              name: profileData?.name,
+              team_name: profileData?.team_name,
+            })
+          }
         } else {
           setProfile(null)
         }
@@ -91,10 +101,15 @@ export default function Navbar() {
             {!loading && profile && (
               <div className="flex items-center gap-2 md:gap-3 pl-3 md:pl-4 border-l border-gray-200">
                 <div className="flex flex-col items-end text-right min-w-0">
-                  <span className="text-xs md:text-sm font-semibold text-gray-900 truncate max-w-[100px] md:max-w-[150px]">
+                  <span className="text-xs md:text-sm font-semibold text-gray-900 truncate max-w-[120px] md:max-w-[180px]">
                     {profile.name || '사용자'}
                   </span>
-                  <span className="text-xs text-gray-500 truncate max-w-[100px] md:max-w-[150px]" title={profile.email}>
+                  {profile.team_name && (
+                    <span className="text-xs text-gray-600 truncate max-w-[120px] md:max-w-[180px]">
+                      {profile.team_name}
+                    </span>
+                  )}
+                  <span className="text-xs text-gray-500 truncate max-w-[120px] md:max-w-[180px]" title={profile.email}>
                     {profile.email}
                   </span>
                 </div>
