@@ -260,15 +260,57 @@ export default function SetlistViewPage() {
     setEditingYoutubeUrl({ ...editingYoutubeUrl, [songId]: url })
   }
 
-  const handleYoutubeUrlSave = (songId: string) => {
-    setSelectedSongs(
-      selectedSongs.map((s) =>
-        s.song_id === songId ? { ...s, youtube_url: editingYoutubeUrl[songId] || '' } : s
-      )
+  const handleYoutubeUrlSave = async (songId: string) => {
+    // 로컬 상태 업데이트
+    const updatedSongs = selectedSongs.map((s) =>
+      s.song_id === songId ? { ...s, youtube_url: editingYoutubeUrl[songId] || '' } : s
     )
+    setSelectedSongs(updatedSongs)
+    
     const newEditingYoutubeUrl = { ...editingYoutubeUrl }
     delete newEditingYoutubeUrl[songId]
     setEditingYoutubeUrl(newEditingYoutubeUrl)
+
+    // 서버에 저장
+    if (!setlist) return
+
+    try {
+      const response = await fetch(`/api/setlists/${setlist.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          description,
+          songs: updatedSongs.map((s) => ({
+            song_id: s.song_id,
+            youtube_url: s.youtube_url || null,
+          })),
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || '저장 실패')
+      }
+
+      const updatedSetlist = await response.json()
+      setSetlist((prev) => {
+        if (prev) {
+          return {
+            ...prev,
+            ...updatedSetlist,
+            songs: prev.songs ?? [],
+          }
+        }
+        return prev
+      })
+    } catch (error) {
+      console.error('Youtube URL save error:', error)
+      alert('유튜브 링크 저장에 실패했습니다. 다시 시도해주세요.')
+      // 실패 시 원래 상태로 복구
+      setSelectedSongs(selectedSongs)
+    }
   }
 
   const handleRemoveSong = (songId: string) => {
@@ -490,8 +532,16 @@ export default function SetlistViewPage() {
                                   variant="outline"
                                   onClick={() => handleYoutubeUrlSave(item.song_id)}
                                   className="flex-shrink-0"
+                                  disabled={isSaving}
                                 >
-                                  저장
+                                  {isSaving ? (
+                                    <>
+                                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                      저장 중...
+                                    </>
+                                  ) : (
+                                    '저장'
+                                  )}
                                 </Button>
                               </div>
                             ) : item.youtube_url ? (
