@@ -3,8 +3,8 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Plus, Loader2, Edit, Trash2, Search } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Plus, Loader2, Edit, Search, ChevronRight } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Song } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
@@ -14,14 +14,12 @@ export default function SongsPage() {
   const supabase = useMemo(() => createClient(), [])
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(true)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredSongs, setFilteredSongs] = useState<Song[]>([])
 
   useEffect(() => {
     fetchSongs()
-    // 현재 사용자 ID 가져오기
     const fetchUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       setCurrentUserId(session?.user?.id ?? null)
@@ -68,33 +66,9 @@ export default function SongsPage() {
     }
   }
 
-  const handleDelete = async (id: string, title: string) => {
-    if (!confirm(`"${title}" 악보를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
-      return
-    }
-
-    setDeletingId(id)
-    try {
-      const response = await fetch(`/api/songs/${id}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        const errorMessage = errorData.error || '삭제 실패'
-        const errorDetails = errorData.details ? `\n상세: ${errorData.details}` : ''
-        throw new Error(`${errorMessage}${errorDetails}`)
-      }
-
-      // 목록에서 제거
-      setSongs(songs.filter((song) => song.id !== id))
-    } catch (error) {
-      console.error('Delete error:', error)
-      const errorMessage = error instanceof Error ? error.message : '악보 삭제에 실패했습니다.'
-      alert(errorMessage)
-    } finally {
-      setDeletingId(null)
-    }
+  const handleEdit = (e: React.MouseEvent, songId: string) => {
+    e.stopPropagation()
+    router.push(`/songs/${songId}/edit`)
   }
 
   if (loading) {
@@ -106,27 +80,33 @@ export default function SongsPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <h1 className="text-3xl font-bold">악보 목록</h1>
+    <div className="container mx-auto max-w-4xl px-4 py-6">
+      {/* 헤더 */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4">
+        <h1 className="text-2xl font-bold">악보 목록</h1>
         <div className="flex gap-2 w-full md:w-auto">
-          <div className="relative flex-1 md:flex-initial md:w-64">
+          <div className="relative flex-1 md:flex-initial md:w-56">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               type="text"
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
-              placeholder="곡명, 아티스트, Key로 검색..."
-              className="pl-10"
+              placeholder="검색..."
+              className="pl-9 h-9 text-sm"
             />
           </div>
-          <Button onClick={() => router.push('/songs/new')}>
-            <Plus className="mr-2 h-4 w-4" />
-            새 악보
+          <Button size="sm" onClick={() => router.push('/songs/new')}>
+            <Plus className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
+      {/* 곡 수 표시 */}
+      <p className="text-xs text-gray-500 mb-2">
+        총 {filteredSongs.length}곡
+      </p>
+
+      {/* 목록 */}
       {songs.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
@@ -138,74 +118,46 @@ export default function SongsPage() {
       ) : (
         <Card>
           <CardContent className="p-0">
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-gray-100">
               {filteredSongs.length === 0 && searchQuery ? (
-                <div className="px-4 py-8 text-center text-gray-500">
+                <div className="px-4 py-8 text-center text-gray-500 text-sm">
                   검색 결과가 없습니다.
                 </div>
               ) : (
-                filteredSongs.map((song) => (
-                <div
-                  key={song.id}
-                  className="flex flex-col gap-2 px-3 py-3 md:px-4 md:py-3 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-2 text-sm text-gray-900">
-                    <span className="font-semibold truncate">{song.title}</span>
-                    <span className="text-gray-400">·</span>
-                    <span className="truncate text-gray-700">{song.artist}</span>
-                    <span className="text-gray-400">·</span>
-                    <span className="text-gray-700">Key: {song.key}</span>
-                  </div>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
-                    <span>송폼: {song.song_form || '-'}</span>
-                    <span>BPM: {song.bpm ?? '-'}</span>
-                    <span>박자: {song.time_signature || '-'}</span>
-                    {song.description ? (
-                      <span className="truncate max-w-full text-gray-700">
-                        설명: {song.description}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">설명 없음</span>
-                    )}
-                      {song.author_email ? (
-                        <span className="text-gray-500">작성자: {song.author_email}</span>
-                      ) : song.author_id ? (
-                        <span className="text-gray-500">
-                          작성자: {song.author_id.substring(0, 8)}...
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">작성자 정보 없음</span>
-                      )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => router.push(`/songs/${song.id}/edit`)}
-                      className="flex-1"
+                filteredSongs.map((song) => {
+                  const canEdit = currentUserId === song.author_id || !song.author_id
+                  return (
+                    <div
+                      key={song.id}
+                      onClick={() => router.push(`/songs/${song.id}`)}
+                      className="flex items-center px-3 py-2.5 hover:bg-gray-50 cursor-pointer transition-colors group"
                     >
-                      <Edit className="mr-1 h-3 w-3" />
-                      수정
-                    </Button>
-                    {(currentUserId === song.author_id || !song.author_id) && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(song.id, song.title)}
-                        disabled={deletingId === song.id}
-                        className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        {deletingId === song.id ? (
-                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                        ) : (
-                          <Trash2 className="mr-1 h-3 w-3" />
+                      {/* 곡 정보 - 한 줄 */}
+                      <div className="flex-1 min-w-0 flex items-center gap-2">
+                        <span className="font-medium text-sm truncate">{song.title}</span>
+                        <span className="text-xs text-gray-400">·</span>
+                        <span className="text-xs text-gray-500 truncate">{song.artist}</span>
+                        <span className="text-xs text-gray-400">·</span>
+                        <span className="text-xs text-gray-500 flex-shrink-0">{song.key}</span>
+                      </div>
+
+                      {/* 우측 버튼들 */}
+                      <div className="flex items-center gap-1 ml-2">
+                        {canEdit && (
+                          <button
+                            onClick={(e) => handleEdit(e, song.id)}
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="수정"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </button>
                         )}
-                        삭제
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )))}
+                        <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gray-400" />
+                      </div>
+                    </div>
+                  )
+                })
+              )}
             </div>
           </CardContent>
         </Card>
