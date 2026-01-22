@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Loader2, Search, X, Share2 } from 'lucide-react'
+import { Loader2, Search, X, Share2, Youtube, ExternalLink, XCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import { Song } from '@/types/database'
@@ -45,6 +45,36 @@ export default function SetlistViewPage() {
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [copyToast, setCopyToast] = useState<string | null>(null)
+  const [selectedImage, setSelectedImage] = useState<{ url: string; title: string } | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // 모바일 감지
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // ESC 키로 모달 닫기
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedImage) {
+        setSelectedImage(null)
+      }
+    }
+    if (selectedImage) {
+      document.addEventListener('keydown', handleEscape)
+      // 모달이 열릴 때 body 스크롤 방지
+      document.body.style.overflow = 'hidden'
+    }
+    return () => {
+      document.removeEventListener('keydown', handleEscape)
+      document.body.style.overflow = 'unset'
+    }
+  }, [selectedImage])
 
   useEffect(() => {
     const fetchSetlist = async () => {
@@ -480,7 +510,8 @@ export default function SetlistViewPage() {
                               <img
                                 src={song.image_url}
                                 alt={song.title}
-                                className="w-full rounded-lg border border-gray-200 max-h-64 md:max-h-96 object-contain bg-gray-50"
+                                onClick={() => setSelectedImage({ url: song.image_url, title: song.title })}
+                                className="w-full rounded-lg border border-gray-200 max-h-64 md:max-h-96 object-contain bg-gray-50 cursor-pointer hover:opacity-90 transition-opacity"
                                 loading="lazy"
                               />
                             </div>
@@ -530,6 +561,56 @@ export default function SetlistViewPage() {
             {copyToast}
           </div>
         </div>
+      )}
+
+      {/* 악보 확대 모달 */}
+      {selectedImage && (
+        <>
+          {isMobile ? (
+            // 모바일: 전체화면
+            <div
+              className="fixed inset-0 z-[100] bg-black flex items-center justify-center"
+              onClick={() => setSelectedImage(null)}
+            >
+              <div className="relative w-full h-full flex items-center justify-center p-4">
+                <img
+                  src={selectedImage.url}
+                  alt={selectedImage.title}
+                  className="max-w-full max-h-full object-contain"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <button
+                  onClick={() => setSelectedImage(null)}
+                  className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors"
+                >
+                  <XCircle className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            // 데스크탑: 배경 어둡게 + 확대
+            <div
+              className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4"
+              onClick={() => setSelectedImage(null)}
+            >
+              <div className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center">
+                <img
+                  src={selectedImage.url}
+                  alt={selectedImage.title}
+                  className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <button
+                  onClick={() => setSelectedImage(null)}
+                  className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
+                  title="닫기 (ESC)"
+                >
+                  <XCircle className="h-8 w-8" />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
