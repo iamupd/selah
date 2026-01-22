@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     date: string
     name: string
     description?: string | null
-    songs?: Array<{ song_id: string; youtube_url?: string | null }>
+    songs?: Array<{ song_id: string }>
   }
 
   if (!date || !name) {
@@ -75,16 +75,6 @@ export async function POST(request: Request) {
 
   // SetlistSongs 생성
   if (songs && songs.length > 0) {
-    // songs 테이블의 youtube_url 업데이트 (있는 경우)
-    for (const songItem of songs) {
-      if (songItem.youtube_url !== undefined) {
-        await supabase
-          .from('songs')
-          .update({ youtube_url: songItem.youtube_url || null })
-          .eq('id', songItem.song_id)
-      }
-    }
-
     const setlistSongs = songs.map((song, index: number) => ({
       setlist_id: setlist.id,
       song_id: song.song_id,

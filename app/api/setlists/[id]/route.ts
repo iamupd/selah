@@ -70,19 +70,7 @@ export async function PUT(
 
   const { description, songs } = body as {
     description?: string
-    songs?: Array<{ song_id: string; youtube_url?: string | null }>
-  }
-
-  // songs 테이블의 youtube_url 업데이트 (있는 경우)
-  if (songs && Array.isArray(songs)) {
-    for (const songItem of songs) {
-      if (songItem.youtube_url !== undefined) {
-        await supabase
-          .from('songs')
-          .update({ youtube_url: songItem.youtube_url || null })
-          .eq('id', songItem.song_id)
-      }
-    }
+    songs?: Array<{ song_id: string }>
   }
 
   // 1) setlists 테이블 업데이트 (description만) - RLS가 작성자만 허용
@@ -121,7 +109,7 @@ export async function PUT(
 
     if (songs.length > 0) {
       const payload = songs.map((s, index) => {
-        const songItem = s as { song_id: string; youtube_url?: string | null }
+        const songItem = s as { song_id: string }
         return {
           setlist_id: id,
           song_id: songItem.song_id,

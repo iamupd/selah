@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Plus, X, Search, Loader2, Youtube } from 'lucide-react'
+import { Plus, X, Search, Loader2 } from 'lucide-react'
 import { Song } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 
@@ -20,8 +20,7 @@ export default function NewSetlistPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Song[]>([])
   const [isSearching, setIsSearching] = useState(false)
-  const [selectedSongs, setSelectedSongs] = useState<Array<{ song_id: string; song: Song; youtube_url?: string }>>([])
-  const [youtubeUrls, setYoutubeUrls] = useState<{ [songId: string]: string }>({})
+  const [selectedSongs, setSelectedSongs] = useState<Array<{ song_id: string; song: Song }>>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [checkingRole, setCheckingRole] = useState(true)
@@ -92,21 +91,14 @@ export default function NewSetlistPage() {
 
   const handleAddSong = (song: Song) => {
     if (!selectedSongs.find((s) => s.song_id === song.id)) {
-      setSelectedSongs([...selectedSongs, { song_id: song.id, song, youtube_url: '' }])
+      setSelectedSongs([...selectedSongs, { song_id: song.id, song }])
       setSearchQuery('')
       setSearchResults([])
     }
   }
 
-  const handleYoutubeUrlChange = (songId: string, url: string) => {
-    setYoutubeUrls({ ...youtubeUrls, [songId]: url })
-  }
-
   const handleRemoveSong = (songId: string) => {
     setSelectedSongs(selectedSongs.filter((s) => s.song_id !== songId))
-    const newYoutubeUrls = { ...youtubeUrls }
-    delete newYoutubeUrls[songId]
-    setYoutubeUrls(newYoutubeUrls)
   }
 
   const handleConfirm = async () => {
@@ -128,7 +120,6 @@ export default function NewSetlistPage() {
           description: description || null,
           songs: selectedSongs.map((s) => ({
             song_id: s.song_id,
-            youtube_url: youtubeUrls[s.song_id] || null,
           })),
         }),
       })
@@ -344,17 +335,6 @@ export default function NewSetlistPage() {
                         >
                           <X className="h-4 w-4" />
                         </button>
-                      </div>
-                      {/* 유튜브 링크 입력 */}
-                      <div className="flex gap-2 items-center">
-                        <Youtube className="h-4 w-4 text-red-600 flex-shrink-0" />
-                        <Input
-                          type="url"
-                          value={youtubeUrls[item.song_id] || ''}
-                          onChange={(e) => handleYoutubeUrlChange(item.song_id, e.target.value)}
-                          placeholder="유튜브 링크를 입력하세요 (선택사항)"
-                          className="flex-1 text-sm"
-                        />
                       </div>
                     </div>
                   ))}

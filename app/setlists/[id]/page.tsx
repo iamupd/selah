@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Loader2, Search, X, Share2, Youtube, ExternalLink, XCircle } from 'lucide-react'
+import { Loader2, Search, X, Share2, XCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import { Song } from '@/types/database'
@@ -37,8 +37,6 @@ export default function SetlistViewPage() {
   const [selectedSongs, setSelectedSongs] = useState<
     Array<{ id?: string; song_id: string; song: Song }>
   >([])
-  const [savingYoutubeUrl, setSavingYoutubeUrl] = useState<string | null>(null)
-  const [editingYoutubeUrl, setEditingYoutubeUrl] = useState<{ [key: string]: string }>({})
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Song[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -190,7 +188,6 @@ export default function SetlistViewPage() {
           description,
           songs: selectedSongs.map((s) => ({
             song_id: s.song_id,
-            youtube_url: s.song?.youtube_url || null,
           })),
         }),
       })
@@ -257,65 +254,6 @@ export default function SetlistViewPage() {
     setSelectedSongs([...selectedSongs, { song_id: song.id, song }])
     setSearchQuery('')
     setSearchResults([])
-  }
-
-  const handleYoutubeUrlChange = (songId: string, url: string) => {
-    setEditingYoutubeUrl({ ...editingYoutubeUrl, [songId]: url })
-  }
-
-  const handleYoutubeUrlSave = async (songId: string) => {
-    if (!setlist) return
-
-    const songItem = selectedSongs.find((s) => s.song_id === songId)
-    if (!songItem) {
-      alert('곡 정보를 찾을 수 없습니다. 페이지를 새로고침해주세요.')
-      return
-    }
-
-    setSavingYoutubeUrl(songId)
-    const newYoutubeUrl = editingYoutubeUrl[songId] || ''
-
-    try {
-      // songs 테이블의 youtube_url 업데이트
-      const response = await fetch(`/api/songs/${songId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: songItem.song.title,
-          artist: songItem.song.artist,
-          key: songItem.song.key,
-          image_url: songItem.song.image_url,
-          youtube_url: newYoutubeUrl || null,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('Save error response:', errorData)
-        const errorMessage = errorData.error || errorData.message || `저장 실패 (${response.status})`
-        throw new Error(errorMessage)
-      }
-
-      // 로컬 상태 업데이트 (song 객체의 youtube_url 업데이트)
-      const updatedSongs = selectedSongs.map((s) =>
-        s.song_id === songId
-          ? { ...s, song: { ...s.song, youtube_url: newYoutubeUrl } as Song }
-          : s
-      )
-      setSelectedSongs(updatedSongs)
-      
-      const newEditingYoutubeUrl = { ...editingYoutubeUrl }
-      delete newEditingYoutubeUrl[songId]
-      setEditingYoutubeUrl(newEditingYoutubeUrl)
-    } catch (error) {
-      console.error('Youtube URL save error:', error)
-      const errorMessage = error instanceof Error ? error.message : '유튜브 링크 저장에 실패했습니다.'
-      alert(`유튜브 링크 저장 실패: ${errorMessage}\n\n브라우저 콘솔을 확인해주세요.`)
-    } finally {
-      setSavingYoutubeUrl(null)
-    }
   }
 
   const handleRemoveSong = (songId: string) => {
@@ -519,48 +457,6 @@ export default function SetlistViewPage() {
                             <div className="text-gray-600">
                               설명: {song?.description ? song.description : '설명 없음'}
                             </div>
-                          </div>
-                          {/* 유튜브 링크 */}
-                          <div className="mt-2">
-                            {isEditMode && (!setlist.author_id || currentUserId === setlist.author_id) ? (
-                              <div className="flex gap-2 items-center">
-                                <Youtube className="h-4 w-4 text-red-600 flex-shrink-0" />
-                                <Input
-                                  type="url"
-                                  value={editingYoutubeUrl[item.song_id] !== undefined ? editingYoutubeUrl[item.song_id] : (item.song?.youtube_url || '')}
-                                  onChange={(e) => handleYoutubeUrlChange(item.song_id, e.target.value)}
-                                  placeholder="유튜브 링크를 입력하세요"
-                                  className="flex-1 text-sm"
-                                />
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleYoutubeUrlSave(item.song_id)}
-                                  className="flex-shrink-0"
-                                  disabled={savingYoutubeUrl === item.song_id || isSaving}
-                                >
-                                  {savingYoutubeUrl === item.song_id ? (
-                                    <>
-                                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                      저장 중...
-                                    </>
-                                  ) : (
-                                    '저장'
-                                  )}
-                                </Button>
-                              </div>
-                            ) : item.song?.youtube_url ? (
-                              <a
-                                href={item.song.youtube_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 text-sm text-red-600 hover:text-red-700 hover:underline"
-                              >
-                                <Youtube className="h-4 w-4" />
-                                유튜브 보기
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            ) : null}
                           </div>
                           {song?.image_url && !isEditMode && (
                             <div className="mt-3">
