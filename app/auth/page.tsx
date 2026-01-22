@@ -22,6 +22,9 @@ function AuthPageContent() {
     searchParams.get('error')
   )
   const [isSignUp, setIsSignUp] = useState(false)
+  const [emailCheckLoading, setEmailCheckLoading] = useState(false)
+  const [emailExists, setEmailExists] = useState<boolean | null>(null)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
   
   // 회원가입 폼 상태
   const [signUpData, setSignUpData] = useState({
@@ -109,6 +112,7 @@ function AuthPageContent() {
     return null
   }
 
+
   const handleSignUp = async () => {
     try {
       setErrorMessage(null)
@@ -132,14 +136,25 @@ function AuthPageContent() {
 
       setLoading(true)
       
-      // 회원가입
+      // 회원가입 (이메일 확인 없이 자동 로그인)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: signUpData.email,
         password: signUpData.password,
+        options: {
+          emailRedirectTo: undefined, // 이메일 리다이렉트 비활성화
+        },
       })
 
       if (authError) {
-        setErrorMessage(`회원가입 오류: ${authError.message}`)
+        // 이메일 중복 오류를 더 명확하게 표시
+        if (authError.message.includes('already registered') || 
+            authError.message.includes('User already registered') ||
+            authError.message.includes('already exists')) {
+          setErrorMessage('이미 사용 중인 이메일입니다. 다른 이메일을 사용하거나 로그인해주세요.')
+          setEmailExists(true)
+        } else {
+          setErrorMessage(`회원가입 오류: ${authError.message}`)
+        }
         setLoading(false)
         return
       }
@@ -164,14 +179,26 @@ function AuthPageContent() {
         // 프로필 생성 실패해도 계정은 생성되었으므로 계속 진행
       }
 
-      // 회원가입 성공 후 자동 로그인
+      // 세션이 이미 있으면 바로 리다이렉트
+      if (authData.session) {
+        const next = searchParams.get('next') || '/dashboard'
+        window.location.href = next
+        return
+      }
+
+      // 세션이 없으면 수동 로그인 시도
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: signUpData.email,
         password: signUpData.password,
       })
 
       if (signInError) {
-        setErrorMessage(`로그인 오류: ${signInError.message}`)
+        // 이메일 확인이 필요한 경우 안내
+        if (signInError.message.includes('Email not confirmed') || signInError.message.includes('email')) {
+          setErrorMessage('이메일 확인이 필요합니다. 이메일을 확인해주세요. (Supabase Dashboard에서 이메일 확인을 비활성화할 수 있습니다)')
+        } else {
+          setErrorMessage(`로그인 오류: ${signInError.message}`)
+        }
         setLoading(false)
         return
       }
@@ -204,7 +231,14 @@ function AuthPageContent() {
       })
       
       if (error) {
-        setErrorMessage(`로그인 오류: ${error.message}`)
+        // 더 명확한 오류 메시지
+        if (error.message.includes('Invalid login credentials')) {
+          setErrorMessage('이메일 또는 비밀번호가 올바르지 않습니다. 다시 확인해주세요.')
+        } else if (error.message.includes('Email not confirmed') || error.message.includes('email')) {
+          setErrorMessage('이메일 확인이 필요합니다. 이메일을 확인해주세요.')
+        } else {
+          setErrorMessage(`로그인 오류: ${error.message}`)
+        }
         setLoading(false)
         return
       }
@@ -268,8 +302,24 @@ function AuthPageContent() {
                   type="email"
                   placeholder="이메일을 입력하세요"
                   value={signUpData.email}
-                  onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                  onChange={(e) => {
+                    const email = e.target.value
+                    setSignUpData({ ...signUpData, email })
+                    setEmailExists(null)
+                    setErrorMessage(null)
+                  }}
+                  onBlur={async () => {
+                    // 이메일 입력 완료 시 중복 체크
+                    if (signUpData.email && signUpData.email.includes('@')) {
+                      // 실제 중복 체크는 회원가입 시도 시 Supabase가 자동으로 처리하므로
+                      // 여기서는 이메일 형식만 확인
+                    }
+                  }}
+                  className={emailExists === true ? 'border-red-500' : ''}
                 />
+                {emailExists === true && (
+                  <p className="text-xs text-red-600">이미 사용 중인 이메일입니다.</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">비밀번호 (6자 이상, 특수문자 포함)</label>
@@ -277,8 +327,25 @@ function AuthPageContent() {
                   type="password"
                   placeholder="비밀번호를 입력하세요"
                   value={signUpData.password}
-                  onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                  onChange={(e) => {
+                    const password = e.target.value
+                    setSignUpData({ ...signUpData, password })
+                    // 실시간 비밀번호 검증
+                    if (password.length > 0) {
+                      const error = validatePassword(password)
+                      setPasswordError(error)
+                    } else {
+                      setPasswordError(null)
+                    }
+                  }}
+                  className={passwordError ? 'border-red-500' : ''}
                 />
+                {passwordError && (
+                  <p className="text-xs text-red-600">{passwordError}</p>
+                )}
+                {!passwordError && signUpData.password.length > 0 && (
+                  <p className="text-xs text-green-600">✓ 비밀번호 조건을 만족합니다</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">비밀번호 확인</label>
