@@ -82,6 +82,68 @@ export default function SetlistViewPage() {
     }
   }, [params.id, supabase])
 
+  // 카카오톡 공유를 위한 메타 태그 설정
+  useEffect(() => {
+    if (!setlist) return
+
+    const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+    const origin = (envUrl && !envUrl.includes('localhost')) ? envUrl : (typeof window !== 'undefined' ? window.location.origin : '');
+    const url = `${origin}/setlists/${setlist.id}`
+    const dateStr = format(new Date(setlist.date), 'yyyy년 M월 d일')
+    const title = `${setlist.name || '콘티'} - ${dateStr}`
+    const description = setlist.description || `${dateStr} 찬양 콘티`
+
+    // 기존 메타 태그 제거
+    const existingOgTitle = document.querySelector('meta[property="og:title"]')
+    const existingOgDescription = document.querySelector('meta[property="og:description"]')
+    const existingOgUrl = document.querySelector('meta[property="og:url"]')
+    const existingOgImage = document.querySelector('meta[property="og:image"]')
+    const existingTitle = document.querySelector('title')
+
+    if (existingOgTitle) existingOgTitle.remove()
+    if (existingOgDescription) existingOgDescription.remove()
+    if (existingOgUrl) existingOgUrl.remove()
+    if (existingOgImage) existingOgImage.remove()
+
+    // 새 메타 태그 추가
+    const ogTitle = document.createElement('meta')
+    ogTitle.setAttribute('property', 'og:title')
+    ogTitle.setAttribute('content', title)
+    document.head.appendChild(ogTitle)
+
+    const ogDescription = document.createElement('meta')
+    ogDescription.setAttribute('property', 'og:description')
+    ogDescription.setAttribute('content', description)
+    document.head.appendChild(ogDescription)
+
+    const ogUrl = document.createElement('meta')
+    ogUrl.setAttribute('property', 'og:url')
+    ogUrl.setAttribute('content', url)
+    document.head.appendChild(ogUrl)
+
+    const ogImage = document.createElement('meta')
+    ogImage.setAttribute('property', 'og:image')
+    ogImage.setAttribute('content', `${origin}/selah.jpg`)
+    document.head.appendChild(ogImage)
+
+    // 페이지 제목도 변경
+    if (existingTitle) {
+      existingTitle.textContent = title
+    } else {
+      const titleTag = document.createElement('title')
+      titleTag.textContent = title
+      document.head.appendChild(titleTag)
+    }
+
+    // 정리 함수
+    return () => {
+      ogTitle.remove()
+      ogDescription.remove()
+      ogUrl.remove()
+      ogImage.remove()
+    }
+  }, [setlist])
+
   const handleSave = async () => {
     if (!setlist) return
 

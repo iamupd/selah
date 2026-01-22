@@ -45,10 +45,10 @@ export default function DashboardPage() {
       <main className="container mx-auto max-w-4xl px-4 py-16">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            찬양 콘티 관리
+            Selah
           </h1>
           <p className="text-lg text-gray-600">
-            찬양인도자를 위한 간편한 콘티 공유 서비스
+            서울-안디옥교회 찬양팀을 위한 간편한 콘티 관리 서비스
           </p>
         </div>
 
