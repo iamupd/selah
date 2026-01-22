@@ -37,7 +37,7 @@ export async function GET(
   const { data: setlistSongs, error: songsError } = await supabase
     .from('setlist_songs')
     // song 별칭으로 반환해 프론트에서 일관되게 접근
-    .select('id, setlist_id, song_order, song:songs!inner(*)')
+    .select('id, setlist_id, song_order, youtube_url, song:songs!inner(*)')
     .eq('setlist_id', id)
     .order('song_order', { ascending: true })
 
@@ -123,7 +123,16 @@ export async function PUT(
         .insert(payload)
 
       if (insertError) {
-        return NextResponse.json({ error: insertError.message }, { status: 500 })
+        console.error('Insert error:', insertError)
+        console.error('Payload:', payload)
+        return NextResponse.json(
+          { 
+            error: insertError.message,
+            details: insertError.details,
+            hint: insertError.hint,
+          },
+          { status: 500 }
+        )
       }
     }
   }

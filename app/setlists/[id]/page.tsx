@@ -291,7 +291,9 @@ export default function SetlistViewPage() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || '저장 실패')
+        console.error('Save error response:', errorData)
+        const errorMessage = errorData.error || errorData.message || `저장 실패 (${response.status})`
+        throw new Error(errorMessage)
       }
 
       const updatedSetlist = await response.json()
@@ -307,7 +309,8 @@ export default function SetlistViewPage() {
       })
     } catch (error) {
       console.error('Youtube URL save error:', error)
-      alert('유튜브 링크 저장에 실패했습니다. 다시 시도해주세요.')
+      const errorMessage = error instanceof Error ? error.message : '유튜브 링크 저장에 실패했습니다.'
+      alert(`유튜브 링크 저장 실패: ${errorMessage}\n\n브라우저 콘솔을 확인해주세요.`)
       // 실패 시 원래 상태로 복구
       setSelectedSongs(selectedSongs)
     }
