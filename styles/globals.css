@@ -1,0 +1,37 @@
+/* Simple fade in/out animation for toast */
+@keyframes fade-in-out {
+  0% { opacity: 0; transform: translateY(8px); }
+  10% { opacity: 1; transform: translateY(0); }
+  90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(8px); }
+}
+
+.animate-fade-in-out {
+  animation: fade-in-out 2s ease-in-out forwards;
+}
+
+/* Ripple effect for hero background */
+.ripple {
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.35), rgba(255,255,255,0));
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: ripple-fade 1.2s ease-out forwards;
+}
+
+@keyframes ripple-fade {
+  0% {
+    opacity: 0.4;
+    transform: translate(-50%, -50%) scale(0.3);
+  }
+  60% {
+    opacity: 0.18;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}
