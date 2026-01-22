@@ -266,7 +266,9 @@ export default function SetlistViewPage() {
         s.song_id === songId ? { ...s, youtube_url: editingYoutubeUrl[songId] || '' } : s
       )
     )
-    setEditingYoutubeUrl({ ...editingYoutubeUrl, [songId]: undefined })
+    const newEditingYoutubeUrl = { ...editingYoutubeUrl }
+    delete newEditingYoutubeUrl[songId]
+    setEditingYoutubeUrl(newEditingYoutubeUrl)
   }
 
   const handleRemoveSong = (songId: string) => {
