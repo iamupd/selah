@@ -4,7 +4,8 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Plus, Loader2, Edit, Trash2 } from 'lucide-react'
+import { Plus, Loader2, Edit, Trash2, Search } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import { Song } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 
@@ -15,6 +16,8 @@ export default function SongsPage() {
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filteredSongs, setFilteredSongs] = useState<Song[]>([])
 
   useEffect(() => {
     fetchSongs()
@@ -26,17 +29,42 @@ export default function SongsPage() {
     fetchUser()
   }, [supabase])
 
-  const fetchSongs = async () => {
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      const filtered = songs.filter(
+        (song) =>
+          song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          song.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          song.key.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      setFilteredSongs(filtered)
+    } else {
+      setFilteredSongs(songs)
+    }
+  }, [searchQuery, songs])
+
+  const fetchSongs = async (query: string = '') => {
     try {
-      const response = await fetch('/api/songs', { cache: 'no-store' })
+      const url = query ? `/api/songs?q=${encodeURIComponent(query)}` : '/api/songs'
+      const response = await fetch(url, { cache: 'no-store' })
       if (response.ok) {
         const data = await response.json()
         setSongs(data)
+        setFilteredSongs(data)
       }
     } catch (error) {
       console.error('Fetch error:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
+    if (query.trim()) {
+      fetchSongs(query)
+    } else {
+      fetchSongs()
     }
   }
 
@@ -79,12 +107,24 @@ export default function SongsPage() {
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <h1 className="text-3xl font-bold">악보 목록</h1>
-        <Button onClick={() => router.push('/songs/new')}>
-          <Plus className="mr-2 h-4 w-4" />
-          새 악보
-        </Button>
+        <div className="flex gap-2 w-full md:w-auto">
+          <div className="relative flex-1 md:flex-initial md:w-64">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              placeholder="곡명, 아티스트, Key로 검색..."
+              className="pl-10"
+            />
+          </div>
+          <Button onClick={() => router.push('/songs/new')}>
+            <Plus className="mr-2 h-4 w-4" />
+            새 악보
+          </Button>
+        </div>
       </div>
 
       {songs.length === 0 ? (
@@ -99,7 +139,12 @@ export default function SongsPage() {
         <Card>
           <CardContent className="p-0">
             <div className="divide-y divide-gray-200">
-              {songs.map((song) => (
+              {filteredSongs.length === 0 && searchQuery ? (
+                <div className="px-4 py-8 text-center text-gray-500">
+                  검색 결과가 없습니다.
+                </div>
+              ) : (
+                filteredSongs.map((song) => (
                 <div
                   key={song.id}
                   className="flex flex-col gap-2 px-3 py-3 md:px-4 md:py-3 hover:bg-gray-50 transition-colors"
@@ -160,7 +205,7 @@ export default function SongsPage() {
                     )}
                   </div>
                 </div>
-              ))}
+              )))}
             </div>
           </CardContent>
         </Card>

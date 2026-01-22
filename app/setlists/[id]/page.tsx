@@ -13,6 +13,7 @@ import { Song } from '@/types/database'
 interface SetlistSong {
   id: string
   song_order: number
+  youtube_url?: string
   song?: Song
 }
 
@@ -35,8 +36,9 @@ export default function SetlistViewPage() {
   const [description, setDescription] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [selectedSongs, setSelectedSongs] = useState<
-    Array<{ id?: string; song_id: string; song: Song }>
+    Array<{ id?: string; song_id: string; song: Song; youtube_url?: string }>
   >([])
+  const [editingYoutubeUrl, setEditingYoutubeUrl] = useState<{ [key: string]: string }>({})
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Song[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -60,6 +62,7 @@ export default function SetlistViewPage() {
               id: s.id,
               song_id: s.song?.id ?? '',
               song: s.song as Song,
+              youtube_url: s.youtube_url,
             })) ?? []
           setSelectedSongs(incomingSongs)
         }
@@ -156,7 +159,10 @@ export default function SetlistViewPage() {
         },
         body: JSON.stringify({
           description,
-          songs: selectedSongs.map((s) => ({ song_id: s.song_id })),
+          songs: selectedSongs.map((s) => ({
+            song_id: s.song_id,
+            youtube_url: s.youtube_url || null,
+          })),
         }),
       })
 
@@ -215,9 +221,22 @@ export default function SetlistViewPage() {
 
   const handleAddSong = (song: Song) => {
     if (selectedSongs.find((s) => s.song_id === song.id)) return
-    setSelectedSongs([...selectedSongs, { song_id: song.id, song }])
+    setSelectedSongs([...selectedSongs, { song_id: song.id, song, youtube_url: '' }])
     setSearchQuery('')
     setSearchResults([])
+  }
+
+  const handleYoutubeUrlChange = (songId: string, url: string) => {
+    setEditingYoutubeUrl({ ...editingYoutubeUrl, [songId]: url })
+  }
+
+  const handleYoutubeUrlSave = (songId: string) => {
+    setSelectedSongs(
+      selectedSongs.map((s) =>
+        s.song_id === songId ? { ...s, youtube_url: editingYoutubeUrl[songId] || '' } : s
+      )
+    )
+    setEditingYoutubeUrl({ ...editingYoutubeUrl, [songId]: undefined })
   }
 
   const handleRemoveSong = (songId: string) => {
@@ -421,6 +440,40 @@ export default function SetlistViewPage() {
                             <div className="text-gray-600">
                               설명: {song?.description ? song.description : '설명 없음'}
                             </div>
+                          </div>
+                          {/* 유튜브 링크 */}
+                          <div className="mt-2">
+                            {isEditMode && (!setlist.author_id || currentUserId === setlist.author_id) ? (
+                              <div className="flex gap-2 items-center">
+                                <Youtube className="h-4 w-4 text-red-600 flex-shrink-0" />
+                                <Input
+                                  type="url"
+                                  value={editingYoutubeUrl[item.song_id] !== undefined ? editingYoutubeUrl[item.song_id] : (item.youtube_url || '')}
+                                  onChange={(e) => handleYoutubeUrlChange(item.song_id, e.target.value)}
+                                  placeholder="유튜브 링크를 입력하세요"
+                                  className="flex-1 text-sm"
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleYoutubeUrlSave(item.song_id)}
+                                  className="flex-shrink-0"
+                                >
+                                  저장
+                                </Button>
+                              </div>
+                            ) : item.youtube_url ? (
+                              <a
+                                href={item.youtube_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 text-sm text-red-600 hover:text-red-700 hover:underline"
+                              >
+                                <Youtube className="h-4 w-4" />
+                                유튜브 보기
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            ) : null}
                           </div>
                           {song?.image_url && !isEditMode && (
                             <div className="mt-3">

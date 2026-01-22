@@ -14,8 +14,21 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "찬양 콘티 관리",
-  description: "찬양인도자를 위한 콘티 공유 서비스",
+  title: "Selah - 서울-안디옥교회 찬양팀",
+  description: "서울-안디옥교회 찬양팀을 위한 간편한 콘티 관리 서비스",
+  openGraph: {
+    title: "Selah - 서울-안디옥교회 찬양팀",
+    description: "서울-안디옥교회 찬양팀을 위한 간편한 콘티 관리 서비스",
+    type: "website",
+    images: [
+      {
+        url: "/selah.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Selah",
+      },
+    ],
+  },
 };
 
 export default function RootLayout({

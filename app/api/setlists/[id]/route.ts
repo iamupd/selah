@@ -112,6 +112,7 @@ export async function PUT(
         setlist_id: id,
         song_id: s.song_id,
         song_order: index + 1,
+        youtube_url: s.youtube_url || null,
       }))
 
       const { error: insertError } = await supabase
@@ -137,7 +138,7 @@ export async function PUT(
 
   const { data: setlistSongs, error: songsError } = await supabase
     .from('setlist_songs')
-    .select('id, setlist_id, song_order, song:songs!inner(*)')
+    .select('id, setlist_id, song_order, youtube_url, song:songs!inner(*)')
     .eq('setlist_id', id)
     .order('song_order', { ascending: true })
 
