@@ -19,7 +19,47 @@ export default function Home() {
   const supabase = useMemo(() => createClient(), []);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const [ripples, setRipples] = useState<Ripple[]>([]);
+
+  // 이미지 preload 및 로딩 상태 관리 (즉시 시작)
+  useEffect(() => {
+    const img = new Image();
+    // 이미지 URL에 타임스탬프를 추가하여 캐시 무효화 방지 (필요시)
+    const imageUrl = '/selah.jpg';
+    
+    // decode()를 사용하여 이미지 디코딩을 비동기로 처리
+    if (img.decode) {
+      img.src = imageUrl;
+      img.decode()
+        .then(() => {
+          setImageLoaded(true);
+        })
+        .catch((error) => {
+          // decode 실패 시 onload로 폴백
+          console.warn('Image decode failed, using onload fallback:', error);
+          img.onload = () => setImageLoaded(true);
+          img.onerror = () => {
+            console.error('Failed to load background image');
+            setImageLoaded(true); // 에러가 나도 UI는 표시
+          };
+          // 이미지가 이미 로드되었을 수 있으므로 확인
+          if (img.complete) {
+            setImageLoaded(true);
+          }
+        });
+    } else {
+      // decode를 지원하지 않는 브라우저를 위한 폴백
+      img.onload = () => {
+        setImageLoaded(true);
+      };
+      img.onerror = () => {
+        console.error('Failed to load background image');
+        setImageLoaded(true);
+      };
+      img.src = imageUrl;
+    }
+  }, []);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -35,7 +75,7 @@ export default function Home() {
   }, [supabase]);
 
   const handleSignIn = async () => {
-    const origin = window.location.origin;
+    const origin = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
     const redirectTo = `${origin}/auth/callback?next=/dashboard`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -61,12 +101,23 @@ export default function Home() {
 
   return (
     <div
-      className="min-h-screen bg-cover bg-center flex items-center justify-center relative"
+      className="min-h-screen bg-cover bg-center bg-no-repeat flex items-center justify-center relative"
       style={{
-        backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.65)), url('/selah.jpg')`,
+        backgroundImage: imageLoaded
+          ? `linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.65)), url('/selah.jpg')`
+          : undefined,
+        backgroundColor: imageLoaded ? undefined : '#1a1a1a',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+        transition: imageLoaded ? 'opacity 0.5s ease-in-out' : 'none',
+        opacity: imageLoaded ? 1 : 0.95,
       }}
       onMouseMove={handleMouseMove}
     >
+      {!imageLoaded && (
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" />
+      )}
       <div className="absolute inset-0 bg-black/20" />
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {ripples.map((r) => (

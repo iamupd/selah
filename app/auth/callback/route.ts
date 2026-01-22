@@ -5,9 +5,10 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') || '/'
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || origin
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/auth?error=missing_code`)
+    return NextResponse.redirect(`${baseUrl}/auth?error=missing_code`)
   }
 
   const supabase = await createClient()
@@ -15,9 +16,9 @@ export async function GET(request: Request) {
 
   if (error) {
     return NextResponse.redirect(
-      `${origin}/auth?error=${encodeURIComponent(error.message)}`
+      `${baseUrl}/auth?error=${encodeURIComponent(error.message)}`
     )
   }
 
-  return NextResponse.redirect(`${origin}${next}`)
+  return NextResponse.redirect(`${baseUrl}${next}`)
 }

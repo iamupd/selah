@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Music, List, Share2 } from "lucide-react";
+import { Music, List, Share2, BookOpen } from "lucide-react";
 
 export default function DashboardPage() {
   return (
@@ -93,6 +93,24 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <List className="h-6 w-6 text-gray-400" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
+        <div className="mt-8">
+          <Link href="/guide">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer border-blue-200 bg-blue-50">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1 text-blue-900">사용 가이드</h3>
+                    <p className="text-sm text-blue-700">
+                      Selah 서비스 사용 방법을 확인하세요
+                    </p>
+                  </div>
+                  <BookOpen className="h-6 w-6 text-blue-600" />
                 </div>
               </CardContent>
             </Card>
