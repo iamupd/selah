@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ interface Profile {
   email?: string
 }
 
-export default function AuthPage() {
+function AuthPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
@@ -99,5 +99,21 @@ export default function AuthPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto max-w-md px-4 py-8">
+        <Card className="shadow-md">
+          <CardContent className="pt-6">
+            <p className="text-center text-gray-500">로딩 중...</p>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <AuthPageContent />
+    </Suspense>
   )
 }
