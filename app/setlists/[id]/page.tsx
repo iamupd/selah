@@ -38,6 +38,7 @@ export default function SetlistViewPage() {
   const [selectedSongs, setSelectedSongs] = useState<
     Array<{ id?: string; song_id: string; song: Song; youtube_url?: string }>
   >([])
+  const [savingYoutubeUrl, setSavingYoutubeUrl] = useState<string | null>(null)
   const [editingYoutubeUrl, setEditingYoutubeUrl] = useState<{ [key: string]: string }>({})
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Song[]>([])
@@ -261,31 +262,26 @@ export default function SetlistViewPage() {
   }
 
   const handleYoutubeUrlSave = async (songId: string) => {
-    // 로컬 상태 업데이트
-    const updatedSongs = selectedSongs.map((s) =>
-      s.song_id === songId ? { ...s, youtube_url: editingYoutubeUrl[songId] || '' } : s
-    )
-    setSelectedSongs(updatedSongs)
-    
-    const newEditingYoutubeUrl = { ...editingYoutubeUrl }
-    delete newEditingYoutubeUrl[songId]
-    setEditingYoutubeUrl(newEditingYoutubeUrl)
-
-    // 서버에 저장
     if (!setlist) return
 
+    const setlistSongItem = selectedSongs.find((s) => s.song_id === songId)
+    if (!setlistSongItem || !setlistSongItem.id) {
+      alert('곡 정보를 찾을 수 없습니다. 페이지를 새로고침해주세요.')
+      return
+    }
+
+    setSavingYoutubeUrl(songId)
+    const newYoutubeUrl = editingYoutubeUrl[songId] || ''
+
     try {
-      const response = await fetch(`/api/setlists/${setlist.id}`, {
-        method: 'PUT',
+      // 특정 setlist_songs 레코드만 업데이트
+      const response = await fetch(`/api/setlists/${setlist.id}/songs/${setlistSongItem.id}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          description,
-          songs: updatedSongs.map((s) => ({
-            song_id: s.song_id,
-            youtube_url: s.youtube_url || null,
-          })),
+          youtube_url: newYoutubeUrl || null,
         }),
       })
 
@@ -296,23 +292,21 @@ export default function SetlistViewPage() {
         throw new Error(errorMessage)
       }
 
-      const updatedSetlist = await response.json()
-      setSetlist((prev) => {
-        if (prev) {
-          return {
-            ...prev,
-            ...updatedSetlist,
-            songs: prev.songs ?? [],
-          }
-        }
-        return prev
-      })
+      // 로컬 상태 업데이트
+      const updatedSongs = selectedSongs.map((s) =>
+        s.song_id === songId ? { ...s, youtube_url: newYoutubeUrl } : s
+      )
+      setSelectedSongs(updatedSongs)
+      
+      const newEditingYoutubeUrl = { ...editingYoutubeUrl }
+      delete newEditingYoutubeUrl[songId]
+      setEditingYoutubeUrl(newEditingYoutubeUrl)
     } catch (error) {
       console.error('Youtube URL save error:', error)
       const errorMessage = error instanceof Error ? error.message : '유튜브 링크 저장에 실패했습니다.'
       alert(`유튜브 링크 저장 실패: ${errorMessage}\n\n브라우저 콘솔을 확인해주세요.`)
-      // 실패 시 원래 상태로 복구
-      setSelectedSongs(selectedSongs)
+    } finally {
+      setSavingYoutubeUrl(null)
     }
   }
 
@@ -535,9 +529,9 @@ export default function SetlistViewPage() {
                                   variant="outline"
                                   onClick={() => handleYoutubeUrlSave(item.song_id)}
                                   className="flex-shrink-0"
-                                  disabled={isSaving}
+                                  disabled={savingYoutubeUrl === item.song_id || isSaving}
                                 >
-                                  {isSaving ? (
+                                  {savingYoutubeUrl === item.song_id ? (
                                     <>
                                       <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                                       저장 중...
