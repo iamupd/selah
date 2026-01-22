@@ -110,7 +110,7 @@ export default function Home() {
               onClick={handleSignIn}
               className="w-full text-base font-semibold"
               size="lg"
-              variant="secondary"
+              variant="outline"
             >
               로그인
             </Button>
