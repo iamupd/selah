@@ -29,12 +29,23 @@
 ## 3. Redirect URL 확인
 
 Supabase Dashboard > **Authentication** > **URL Configuration**에서:
-- **Site URL**: `http://localhost:3000` (로컬 개발용)
+
+### 로컬 개발용 설정
+- **Site URL**: `http://localhost:3000`
 - **Redirect URLs**: 다음 추가
   ```
   http://localhost:3000/auth/callback
-  https://your-domain.com/auth/callback
   ```
+
+### 배포 환경 설정 (중요!)
+배포 후에는 반드시 다음을 설정해야 합니다:
+- **Site URL**: 배포된 도메인으로 변경 (예: `https://selah-zeta.vercel.app`)
+- **Redirect URLs**: 배포된 도메인의 콜백 URL 추가
+  ```
+  https://selah-zeta.vercel.app/auth/callback
+  ```
+
+⚠️ **주의**: Site URL과 Redirect URLs 모두 배포 URL로 설정해야 로그인 후 올바른 도메인으로 리다이렉트됩니다.
 
 ## 4. 테스트
 
@@ -52,3 +63,9 @@ Supabase Dashboard > **Authentication** > **URL Configuration**에서:
 ### 리디렉트 오류
 - Google Cloud Console의 Authorized redirect URIs에 Supabase 콜백 URL이 정확히 입력되었는지 확인
 - Supabase Dashboard의 Redirect URLs에 앱의 콜백 URL이 추가되었는지 확인
+
+### 로그인 후 localhost로 리다이렉트되는 문제
+- Supabase Dashboard > **Authentication** > **URL Configuration**에서:
+  - **Site URL**이 배포된 도메인으로 설정되어 있는지 확인 (예: `https://selah-zeta.vercel.app`)
+  - **Redirect URLs**에 배포된 도메인의 콜백 URL이 추가되어 있는지 확인 (예: `https://selah-zeta.vercel.app/auth/callback`)
+  - 설정 변경 후 Supabase가 변경사항을 적용하는데 몇 분이 걸릴 수 있습니다

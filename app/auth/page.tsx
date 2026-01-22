@@ -26,6 +26,10 @@ function AuthPageContent() {
       const { data, error } = await supabase.auth.getSession()
       if (!error && data.session?.user) {
         setProfile({ email: data.session.user.email ?? undefined })
+        // 세션이 있으면 자동으로 dashboard로 리다이렉트
+        const next = searchParams.get('next') || '/dashboard'
+        router.push(next)
+        return
       } else {
         setProfile(null)
       }
@@ -33,7 +37,7 @@ function AuthPageContent() {
     }
 
     fetchSession()
-  }, [supabase])
+  }, [supabase, router, searchParams])
 
   const handleSignIn = async () => {
     const envUrl = process.env.NEXT_PUBLIC_APP_URL;
