@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { createClient } from '@/lib/supabase/client'
 
 interface Profile {
@@ -33,6 +34,7 @@ function AuthPageContent() {
     confirmPassword: '',
     name: '',
     teamName: '',
+    role: '팀원' as '인도자' | '팀원',
   })
   
   // 로그인 폼 상태
@@ -118,7 +120,7 @@ function AuthPageContent() {
       setErrorMessage(null)
       
       // 입력 검증
-      if (!signUpData.email || !signUpData.password || !signUpData.name || !signUpData.teamName) {
+      if (!signUpData.email || !signUpData.password || !signUpData.name || !signUpData.teamName || !signUpData.role) {
         setErrorMessage('모든 필드를 입력해주세요.')
         return
       }
@@ -172,11 +174,19 @@ function AuthPageContent() {
           id: authData.user.id,
           name: signUpData.name,
           team_name: signUpData.teamName,
+          role: signUpData.role,
         })
 
       if (profileError) {
         console.error('Profile creation error:', profileError)
-        // 프로필 생성 실패해도 계정은 생성되었으므로 계속 진행
+        // 테이블이 없는 경우 명확한 에러 메시지
+        if (profileError.message.includes('relation') && profileError.message.includes('does not exist')) {
+          setErrorMessage('데이터베이스 테이블이 생성되지 않았습니다. Supabase Dashboard에서 user_profiles 테이블을 생성해주세요. 자세한 내용은 SUPABASE_AUTH_SETUP.md를 참고하세요.')
+        } else {
+          setErrorMessage(`프로필 저장 오류: ${profileError.message}. 계정은 생성되었지만 프로필 정보가 저장되지 않았습니다.`)
+        }
+        setLoading(false)
+        return
       }
 
       // 세션이 이미 있으면 바로 리다이렉트
@@ -373,6 +383,16 @@ function AuthPageContent() {
                   value={signUpData.teamName}
                   onChange={(e) => setSignUpData({ ...signUpData, teamName: e.target.value })}
                 />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">역할</label>
+                <Select
+                  value={signUpData.role}
+                  onChange={(e) => setSignUpData({ ...signUpData, role: e.target.value as '인도자' | '팀원' })}
+                >
+                  <option value="팀원">팀원</option>
+                  <option value="인도자">인도자</option>
+                </Select>
               </div>
               <div className="flex gap-2">
                 <Button onClick={handleSignUp} className="flex-1">

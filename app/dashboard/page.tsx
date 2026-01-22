@@ -1,9 +1,45 @@
+'use client'
+
+import { useEffect, useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Music, List, Share2, BookOpen } from "lucide-react";
+import { Music, List, BookOpen } from "lucide-react";
+import { createClient } from '@/lib/supabase/client'
 
 export default function DashboardPage() {
+  const router = useRouter()
+  const supabase = useMemo(() => createClient(), [])
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [roleToast, setRoleToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single()
+        
+        setUserRole(profile?.role ?? null)
+      }
+    }
+    fetchUserRole()
+  }, [supabase])
+
+  const handleNewSetlist = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (userRole === '인도자') {
+      router.push('/setlists/new')
+    } else {
+      setRoleToast('콘티 등록은 인도자만 가능합니다.')
+      setTimeout(() => setRoleToast(null), 3000)
+    }
+  }
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="container mx-auto max-w-4xl px-4 py-16">
@@ -16,7 +52,39 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3 mb-8">
+        <div className="grid gap-6 md:grid-cols-2 mb-8">
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <Music className="h-8 w-8 text-blue-600 mb-2" />
+              <CardTitle>악보 목록</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 mb-4">
+                등록된 모든 악보를 확인하세요
+              </p>
+              <Link href="/songs">
+                <Button className="w-full">악보 목록 보기</Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <List className="h-8 w-8 text-blue-600 mb-2" />
+              <CardTitle>콘티 목록</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600 mb-4">
+                모든 콘티를 관리하고 공유하세요
+              </p>
+              <Link href="/setlists">
+                <Button className="w-full">콘티 목록 보기</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
           <Card className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <Music className="h-8 w-8 text-blue-600 mb-2" />
@@ -27,7 +95,7 @@ export default function DashboardPage() {
                 이미지를 업로드하거나 붙여넣어 악보를 등록하세요
               </p>
               <Link href="/songs/new">
-                <Button className="w-full">악보 등록하기</Button>
+                <Button variant="outline" className="w-full">악보 등록하기</Button>
               </Link>
             </CardContent>
           </Card>
@@ -41,62 +109,11 @@ export default function DashboardPage() {
               <p className="text-sm text-gray-600 mb-4">
                 예배 정보를 입력하고 찬양 곡을 추가하세요
               </p>
-              <Link href="/setlists/new">
-                <Button className="w-full">콘티 만들기</Button>
-              </Link>
+              <Button variant="outline" className="w-full" onClick={handleNewSetlist}>
+                콘티 만들기
+              </Button>
             </CardContent>
           </Card>
-
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <Share2 className="h-8 w-8 text-blue-600 mb-2" />
-              <CardTitle>콘티 공유</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600 mb-4">
-                링크를 공유하여 누구나 볼 수 있게 하세요
-              </p>
-              <Link href="/setlists">
-                <Button variant="outline" className="w-full">
-                  콘티 목록 보기
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <Link href="/songs">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-lg mb-1">악보 목록</h3>
-                    <p className="text-sm text-gray-600">
-                      등록된 모든 악보를 확인하세요
-                    </p>
-                  </div>
-                  <Music className="h-6 w-6 text-gray-400" />
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/setlists">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-lg mb-1">콘티 목록</h3>
-                    <p className="text-sm text-gray-600">
-                      모든 콘티를 관리하고 공유하세요
-                    </p>
-                  </div>
-                  <List className="h-6 w-6 text-gray-400" />
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
         </div>
 
         <div className="mt-8">
@@ -117,6 +134,14 @@ export default function DashboardPage() {
           </Link>
         </div>
       </main>
+
+      {roleToast && (
+        <div className="fixed inset-x-0 bottom-6 flex justify-center px-4 pointer-events-none z-50">
+          <div className="bg-red-600 text-white text-sm px-4 py-2 rounded-full shadow-lg opacity-90 animate-fade-in-out">
+            {roleToast}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

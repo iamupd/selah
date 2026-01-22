@@ -2,8 +2,15 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
 export async function middleware(req: NextRequest) {
+  const pathname = req.nextUrl.pathname
+  
   // 홈은 누구나 접근 가능
-  if (req.nextUrl.pathname === '/') {
+  if (pathname === '/') {
+    return NextResponse.next()
+  }
+
+  // 콘티 공유 링크는 누구나 접근 가능 (단, edit 모드는 제외)
+  if (pathname.startsWith('/setlists/') && !req.nextUrl.searchParams.has('mode')) {
     return NextResponse.next()
   }
 

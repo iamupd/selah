@@ -39,6 +39,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: '인증된 사용자를 찾을 수 없습니다.' }, { status: 401 })
   }
 
+  // 사용자 역할 확인 (인도자만 콘티 생성 가능)
+  const { data: profile, error: profileError } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (profileError || !profile) {
+    return NextResponse.json({ error: '사용자 프로필을 찾을 수 없습니다.' }, { status: 403 })
+  }
+
+  if (profile.role !== '인도자') {
+    return NextResponse.json(
+      { error: '찬양 콘티는 인도자만 생성할 수 있습니다.' },
+      { status: 403 }
+    )
+  }
+
   // Setlist 생성 (작성자 정보 포함)
   const { data: setlist, error: setlistError } = await supabase
     .from('setlists')

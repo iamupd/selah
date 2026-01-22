@@ -26,6 +26,8 @@ export default function SetlistsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [copyToast, setCopyToast] = useState<string | null>(null)
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [roleToast, setRoleToast] = useState<string | null>(null)
 
   const fetchSetlists = async () => {
     try {
@@ -43,10 +45,20 @@ export default function SetlistsPage() {
 
   useEffect(() => {
     fetchSetlists()
-    // 현재 사용자 ID 가져오기
+    // 현재 사용자 ID 및 역할 가져오기
     const fetchUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       setCurrentUserId(session?.user?.id ?? null)
+      
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single()
+        
+        setUserRole(profile?.role ?? null)
+      }
     }
     fetchUser()
   }, [supabase])
@@ -59,6 +71,15 @@ export default function SetlistsPage() {
       setCopyToast('클립보드에 콘티 공유 주소가 복사되었습니다.')
       setTimeout(() => setCopyToast(null), 2000)
     })
+  }
+
+  const handleNewSetlist = () => {
+    if (userRole === '인도자') {
+      router.push('/setlists/new')
+    } else {
+      setRoleToast('콘티 등록은 인도자만 가능합니다.')
+      setTimeout(() => setRoleToast(null), 3000)
+    }
   }
 
   const handleDelete = async (id: string, name: string) => {
@@ -100,7 +121,7 @@ export default function SetlistsPage() {
     <div className="container mx-auto max-w-4xl px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">콘티 목록</h1>
-        <Button onClick={() => router.push('/setlists/new')}>
+        <Button onClick={handleNewSetlist}>
           <Plus className="mr-2 h-4 w-4" />
           새 콘티
         </Button>
@@ -182,6 +203,14 @@ export default function SetlistsPage() {
         <div className="fixed inset-x-0 bottom-6 flex justify-center px-4 pointer-events-none">
           <div className="bg-gray-900 text-white text-sm px-4 py-2 rounded-full shadow-lg opacity-90 animate-fade-in-out">
             {copyToast}
+          </div>
+        </div>
+      )}
+
+      {roleToast && (
+        <div className="fixed inset-x-0 bottom-6 flex justify-center px-4 pointer-events-none">
+          <div className="bg-red-600 text-white text-sm px-4 py-2 rounded-full shadow-lg opacity-90 animate-fade-in-out">
+            {roleToast}
           </div>
         </div>
       )}

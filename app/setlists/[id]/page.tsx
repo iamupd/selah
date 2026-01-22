@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Loader2, Search, X } from 'lucide-react'
+import { Loader2, Search, X, Share2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import { Song } from '@/types/database'
@@ -42,6 +42,7 @@ export default function SetlistViewPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [copyToast, setCopyToast] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchSetlist = async () => {
@@ -161,6 +162,16 @@ export default function SetlistViewPage() {
     setSelectedSongs(selectedSongs.filter((s) => s.song_id !== songId))
   }
 
+  const handleShare = () => {
+    const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+    const origin = (envUrl && !envUrl.includes('localhost')) ? envUrl : window.location.origin;
+    const url = `${origin}/setlists/${setlist?.id}`
+    navigator.clipboard.writeText(url).then(() => {
+      setCopyToast('클립보드에 콘티 공유 주소가 복사되었습니다.')
+      setTimeout(() => setCopyToast(null), 2000)
+    })
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -185,21 +196,35 @@ export default function SetlistViewPage() {
     <div className="container mx-auto max-w-2xl px-4 py-4 md:py-8">
       <Card className="md:shadow-lg">
         <CardHeader className="pb-4">
-          <CardTitle className="text-xl md:text-2xl">{setlist.name}</CardTitle>
-          <p className="text-sm text-gray-600 mt-1">
-            {format(new Date(setlist.date), 'yyyy년 M월 d일')}
-          </p>
-          {setlist.author_email ? (
-            <p className="text-xs text-gray-500 mt-1">
-              작성자: {setlist.author_email}
-            </p>
-          ) : setlist.author_id ? (
-            <p className="text-xs text-gray-500 mt-1">
-              작성자: {setlist.author_id.substring(0, 8)}...
-            </p>
-          ) : (
-            <p className="text-xs text-gray-400 mt-1">작성자 정보 없음</p>
-          )}
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <CardTitle className="text-xl md:text-2xl">{setlist.name}</CardTitle>
+              <p className="text-sm text-gray-600 mt-1">
+                {format(new Date(setlist.date), 'yyyy년 M월 d일')}
+              </p>
+              {setlist.author_email ? (
+                <p className="text-xs text-gray-500 mt-1">
+                  작성자: {setlist.author_email}
+                </p>
+              ) : setlist.author_id ? (
+                <p className="text-xs text-gray-500 mt-1">
+                  작성자: {setlist.author_id.substring(0, 8)}...
+                </p>
+              ) : (
+                <p className="text-xs text-gray-400 mt-1">작성자 정보 없음</p>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShare}
+              className="ml-4"
+              title="공유 링크 복사"
+            >
+              <Share2 className="h-4 w-4 mr-2" />
+              공유
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="px-4 md:px-6">
           {/* 콘티 설명 영역 */}
@@ -383,6 +408,14 @@ export default function SetlistViewPage() {
           </div>
         </CardContent>
       </Card>
+
+      {copyToast && (
+        <div className="fixed inset-x-0 bottom-6 flex justify-center px-4 pointer-events-none z-50">
+          <div className="bg-gray-900 text-white text-sm px-4 py-2 rounded-full shadow-lg opacity-90 animate-fade-in-out">
+            {copyToast}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

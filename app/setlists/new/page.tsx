@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,9 +8,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Plus, X, Search, Loader2 } from 'lucide-react'
 import { Song } from '@/types/database'
+import { createClient } from '@/lib/supabase/client'
 
 export default function NewSetlistPage() {
   const router = useRouter()
+  const supabase = useMemo(() => createClient(), [])
   const [date, setDate] = useState('')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -20,6 +22,46 @@ export default function NewSetlistPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [selectedSongs, setSelectedSongs] = useState<Array<{ song_id: string; song: Song }>>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [checkingRole, setCheckingRole] = useState(true)
+
+  // 사용자 역할 확인
+  useEffect(() => {
+    const checkUserRole = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (!session?.user) {
+          router.push('/auth')
+          return
+        }
+
+        const { data: profile, error } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single()
+
+        if (error || !profile) {
+          setUserRole(null)
+        } else {
+          setUserRole(profile.role)
+          
+          // 인도자가 아니면 콘티 목록으로 리다이렉트
+          if (profile.role !== '인도자') {
+            router.push('/setlists')
+          }
+        }
+      } catch (error) {
+        console.error('Role check error:', error)
+        setUserRole(null)
+      } finally {
+        setCheckingRole(false)
+      }
+    }
+
+    checkUserRole()
+  }, [supabase, router])
 
   const handleSearch = async (query: string) => {
     if (!query.trim()) {
@@ -81,7 +123,16 @@ export default function NewSetlistPage() {
       })
 
       if (!response.ok) {
-        throw new Error('등록 실패')
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.error || '등록 실패'
+        
+        if (response.status === 403) {
+          alert(errorMessage)
+          router.push('/setlists')
+          return
+        }
+        
+        throw new Error(errorMessage)
       }
 
       router.push('/setlists')
@@ -91,6 +142,36 @@ export default function NewSetlistPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // 역할 확인 중이면 로딩 표시
+  if (checkingRole) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    )
+  }
+
+  // 인도자가 아니면 접근 불가 메시지 (리다이렉트 전 잠깐 표시될 수 있음)
+  if (userRole !== '인도자') {
+    return (
+      <div className="container mx-auto max-w-2xl px-4 py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>접근 권한 없음</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center text-gray-500 py-8">
+              찬양 콘티는 인도자만 생성할 수 있습니다.
+            </p>
+            <Button onClick={() => router.push('/setlists')} className="w-full">
+              콘티 목록으로 돌아가기
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (!showDetail) {

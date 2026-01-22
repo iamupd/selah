@@ -10,6 +10,7 @@ interface UserProfile {
   email?: string
   name?: string
   team_name?: string
+  role?: string
 }
 
 export default function Navbar() {
@@ -27,7 +28,7 @@ export default function Navbar() {
           // 프로필 정보 가져오기
           const { data: profileData, error: profileError } = await supabase
             .from('user_profiles')
-            .select('name, team_name')
+            .select('name, team_name, role')
             .eq('id', data.session.user.id)
             .single()
           
@@ -38,12 +39,14 @@ export default function Navbar() {
               email: data.session.user.email ?? undefined,
               name: undefined,
               team_name: undefined,
+              role: undefined,
             })
           } else {
             setProfile({ 
               email: data.session.user.email ?? undefined,
               name: profileData?.name,
               team_name: profileData?.team_name,
+              role: profileData?.role,
             })
           }
         } else {
@@ -106,7 +109,7 @@ export default function Navbar() {
                   </span>
                   {profile.team_name && (
                     <span className="text-xs text-gray-600 truncate max-w-[120px] md:max-w-[180px]">
-                      {profile.team_name}
+                      {profile.team_name} {profile.role && `· ${profile.role}`}
                     </span>
                   )}
                   <span className="text-xs text-gray-500 truncate max-w-[120px] md:max-w-[180px]" title={profile.email}>
