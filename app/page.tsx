@@ -76,7 +76,8 @@ export default function Home() {
   }, [supabase]);
 
   const handleSignIn = async () => {
-    const origin = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+    const origin = (envUrl && !envUrl.includes('localhost')) ? envUrl : window.location.origin;
     const redirectTo = `${origin}/auth/callback?next=/dashboard`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",

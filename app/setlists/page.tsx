@@ -52,7 +52,8 @@ export default function SetlistsPage() {
   }, [supabase])
 
   const handleShare = (id: string) => {
-    const origin = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+    const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+    const origin = (envUrl && !envUrl.includes('localhost')) ? envUrl : window.location.origin;
     const url = `${origin}/setlists/${id}`
     navigator.clipboard.writeText(url).then(() => {
       setCopyToast('클립보드에 콘티 공유 주소가 복사되었습니다.')
