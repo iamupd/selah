@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 
 interface Profile {
   email?: string;
+  name?: string;
+  team_name?: string;
 }
 
 interface Ripple {
@@ -72,7 +74,18 @@ export default function Home() {
         if (!isMounted) return;
 
         if (!error && data.session?.user) {
-          setProfile({ email: data.session.user.email ?? undefined });
+          // 프로필 정보 가져오기
+          const { data: profileData } = await supabase
+            .from('user_profiles')
+            .select('name, team_name')
+            .eq('id', data.session.user.id)
+            .single();
+          
+          setProfile({ 
+            email: data.session.user.email ?? undefined,
+            name: profileData?.name,
+            team_name: profileData?.team_name,
+          });
         } else {
           setProfile(null);
         }
@@ -104,29 +117,9 @@ export default function Home() {
     };
   }, [supabase]);
 
-  const handleSignIn = async () => {
-    try {
-      const envUrl = process.env.NEXT_PUBLIC_APP_URL;
-      const origin = (envUrl && !envUrl.includes('localhost')) ? envUrl : window.location.origin;
-      const redirectTo = `${origin}/auth/callback?next=/dashboard`;
-      
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-        },
-      });
-      
-      if (error) {
-        console.error("Login error:", error);
-        alert(`로그인 오류: ${error.message}`);
-      }
-      // 에러가 없으면 OAuth 리다이렉트가 시작되므로 여기서는 아무것도 하지 않음
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
-      console.error("Login exception:", err);
-      alert(`로그인 중 오류가 발생했습니다: ${errorMessage}`);
-    }
+  const handleSignIn = () => {
+    // 로그인 페이지로 리다이렉트
+    window.location.href = '/auth';
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -184,8 +177,13 @@ export default function Home() {
                   로그인됨
                 </p>
                 <p className="text-base md:text-lg text-white font-semibold">
-                  {profile.email}
+                  {profile.name || profile.email}
                 </p>
+                {profile.team_name && (
+                  <p className="text-sm text-gray-300">
+                    {profile.team_name}
+                  </p>
+                )}
               </div>
             ) : (
               <p className="text-sm md:text-base text-gray-300">
