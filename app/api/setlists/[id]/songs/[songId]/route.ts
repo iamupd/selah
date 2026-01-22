@@ -23,12 +23,11 @@ export async function PATCH(
     youtube_url?: string | null
   }
 
-  // setlist_songs 레코드 업데이트
+  // songs 테이블의 youtube_url 업데이트
   const { error: updateError } = await supabase
-    .from('setlist_songs')
+    .from('songs')
     .update({ youtube_url: youtube_url || null })
     .eq('id', songId)
-    .eq('setlist_id', id)
 
   if (updateError) {
     console.error('Update error:', updateError)

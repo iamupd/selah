@@ -13,7 +13,6 @@ import { Song } from '@/types/database'
 interface SetlistSong {
   id: string
   song_order: number
-  youtube_url?: string
   song?: Song
 }
 
@@ -36,7 +35,7 @@ export default function SetlistViewPage() {
   const [description, setDescription] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [selectedSongs, setSelectedSongs] = useState<
-    Array<{ id?: string; song_id: string; song: Song; youtube_url?: string }>
+    Array<{ id?: string; song_id: string; song: Song }>
   >([])
   const [savingYoutubeUrl, setSavingYoutubeUrl] = useState<string | null>(null)
   const [editingYoutubeUrl, setEditingYoutubeUrl] = useState<{ [key: string]: string }>({})
@@ -93,7 +92,6 @@ export default function SetlistViewPage() {
               id: s.id,
               song_id: s.song?.id ?? '',
               song: s.song as Song,
-              youtube_url: s.youtube_url,
             })) ?? []
           setSelectedSongs(incomingSongs)
         }
@@ -192,7 +190,7 @@ export default function SetlistViewPage() {
           description,
           songs: selectedSongs.map((s) => ({
             song_id: s.song_id,
-            youtube_url: s.youtube_url || null,
+            youtube_url: s.song?.youtube_url || null,
           })),
         }),
       })
@@ -268,8 +266,8 @@ export default function SetlistViewPage() {
   const handleYoutubeUrlSave = async (songId: string) => {
     if (!setlist) return
 
-    const setlistSongItem = selectedSongs.find((s) => s.song_id === songId)
-    if (!setlistSongItem || !setlistSongItem.id) {
+    const songItem = selectedSongs.find((s) => s.song_id === songId)
+    if (!songItem) {
       alert('곡 정보를 찾을 수 없습니다. 페이지를 새로고침해주세요.')
       return
     }
@@ -278,13 +276,17 @@ export default function SetlistViewPage() {
     const newYoutubeUrl = editingYoutubeUrl[songId] || ''
 
     try {
-      // 특정 setlist_songs 레코드만 업데이트
-      const response = await fetch(`/api/setlists/${setlist.id}/songs/${setlistSongItem.id}`, {
-        method: 'PATCH',
+      // songs 테이블의 youtube_url 업데이트
+      const response = await fetch(`/api/songs/${songId}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          title: songItem.song.title,
+          artist: songItem.song.artist,
+          key: songItem.song.key,
+          image_url: songItem.song.image_url,
           youtube_url: newYoutubeUrl || null,
         }),
       })
@@ -296,9 +298,11 @@ export default function SetlistViewPage() {
         throw new Error(errorMessage)
       }
 
-      // 로컬 상태 업데이트
+      // 로컬 상태 업데이트 (song 객체의 youtube_url 업데이트)
       const updatedSongs = selectedSongs.map((s) =>
-        s.song_id === songId ? { ...s, youtube_url: newYoutubeUrl } : s
+        s.song_id === songId
+          ? { ...s, song: { ...s.song, youtube_url: newYoutubeUrl } as Song }
+          : s
       )
       setSelectedSongs(updatedSongs)
       
@@ -523,7 +527,7 @@ export default function SetlistViewPage() {
                                 <Youtube className="h-4 w-4 text-red-600 flex-shrink-0" />
                                 <Input
                                   type="url"
-                                  value={editingYoutubeUrl[item.song_id] !== undefined ? editingYoutubeUrl[item.song_id] : (item.youtube_url || '')}
+                                  value={editingYoutubeUrl[item.song_id] !== undefined ? editingYoutubeUrl[item.song_id] : (item.song?.youtube_url || '')}
                                   onChange={(e) => handleYoutubeUrlChange(item.song_id, e.target.value)}
                                   placeholder="유튜브 링크를 입력하세요"
                                   className="flex-1 text-sm"
@@ -545,9 +549,9 @@ export default function SetlistViewPage() {
                                   )}
                                 </Button>
                               </div>
-                            ) : item.youtube_url ? (
+                            ) : item.song?.youtube_url ? (
                               <a
-                                href={item.youtube_url}
+                                href={item.song.youtube_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 text-sm text-red-600 hover:text-red-700 hover:underline"

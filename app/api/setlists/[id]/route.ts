@@ -37,7 +37,7 @@ export async function GET(
   const { data: setlistSongs, error: songsError } = await supabase
     .from('setlist_songs')
     // song 별칭으로 반환해 프론트에서 일관되게 접근
-    .select('id, setlist_id, song_order, youtube_url, song:songs!inner(*)')
+    .select('id, setlist_id, song_order, song:songs!inner(*)')
     .eq('setlist_id', id)
     .order('song_order', { ascending: true })
 
@@ -73,6 +73,18 @@ export async function PUT(
     songs?: Array<{ song_id: string; youtube_url?: string | null }>
   }
 
+  // songs 테이블의 youtube_url 업데이트 (있는 경우)
+  if (songs && Array.isArray(songs)) {
+    for (const songItem of songs) {
+      if (songItem.youtube_url !== undefined) {
+        await supabase
+          .from('songs')
+          .update({ youtube_url: songItem.youtube_url || null })
+          .eq('id', songItem.song_id)
+      }
+    }
+  }
+
   // 1) setlists 테이블 업데이트 (description만) - RLS가 작성자만 허용
   let setlistResult = await supabase
     .from('setlists')
@@ -97,12 +109,6 @@ export async function PUT(
 
   // 2) setlist_songs 업데이트 (전체 재작성)
   if (Array.isArray(songs)) {
-    // 기존 곡 정보 가져오기 (youtube_url 보존을 위해)
-    const { data: existingSongs } = await supabase
-      .from('setlist_songs')
-      .select('id, song_id, song_order, youtube_url')
-      .eq('setlist_id', id)
-
     // 기존 곡 모두 삭제
     const { error: deleteError } = await supabase
       .from('setlist_songs')
@@ -114,20 +120,12 @@ export async function PUT(
     }
 
     if (songs.length > 0) {
-      // 기존 youtube_url 정보를 유지하면서 새 payload 생성
       const payload = songs.map((s, index) => {
         const songItem = s as { song_id: string; youtube_url?: string | null }
-        // 기존 곡에서 youtube_url 찾기
-        const existingSong = existingSongs?.find(
-          (es) => es.song_id === songItem.song_id && es.song_order === index + 1
-        )
         return {
           setlist_id: id,
           song_id: songItem.song_id,
           song_order: index + 1,
-          youtube_url: songItem.youtube_url !== undefined 
-            ? (songItem.youtube_url || null)
-            : (existingSong?.youtube_url || null),
         }
       })
 
@@ -163,7 +161,7 @@ export async function PUT(
 
   const { data: setlistSongs, error: songsError } = await supabase
     .from('setlist_songs')
-    .select('id, setlist_id, song_order, youtube_url, song:songs!inner(*)')
+    .select('id, setlist_id, song_order, song:songs!inner(*)')
     .eq('setlist_id', id)
     .order('song_order', { ascending: true })
 

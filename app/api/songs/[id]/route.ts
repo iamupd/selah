@@ -49,7 +49,7 @@ export async function PUT(
   const supabase = await createClient()
   const body = await request.json()
 
-  const { title, artist, key, image_url, storage_path, song_form, bpm, time_signature, description } = body
+  const { title, artist, key, image_url, storage_path, song_form, bpm, time_signature, description, youtube_url } = body
 
   if (!title || !artist || !key) {
     return NextResponse.json(
@@ -84,6 +84,9 @@ export async function PUT(
   if (description !== undefined) {
     updateData.description = description || null
   }
+  if (youtube_url !== undefined) {
+    updateData.youtube_url = youtube_url || null
+  }
 
   const { data, error } = await supabase
     .from('songs')
@@ -94,7 +97,7 @@ export async function PUT(
 
   if (error) {
     // 스키마에 컬럼이 없을 때 명확히 알려준다
-    if (error.message?.includes('time_signature') || error.message?.includes('song_form') || error.message?.includes('bpm') || error.message?.includes('description')) {
+    if (error.message?.includes('time_signature') || error.message?.includes('song_form') || error.message?.includes('bpm') || error.message?.includes('description') || error.message?.includes('youtube_url')) {
       return NextResponse.json(
         {
           error: 'DB 스키마에 필요한 컬럼이 없습니다. 최신 마이그레이션을 적용하세요.',

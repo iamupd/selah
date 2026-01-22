@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Plus, X, Search, Loader2 } from 'lucide-react'
+import { Plus, X, Search, Loader2, Youtube } from 'lucide-react'
 import { Song } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 
@@ -20,7 +20,8 @@ export default function NewSetlistPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Song[]>([])
   const [isSearching, setIsSearching] = useState(false)
-  const [selectedSongs, setSelectedSongs] = useState<Array<{ song_id: string; song: Song }>>([])
+  const [selectedSongs, setSelectedSongs] = useState<Array<{ song_id: string; song: Song; youtube_url?: string }>>([])
+  const [youtubeUrls, setYoutubeUrls] = useState<{ [songId: string]: string }>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [checkingRole, setCheckingRole] = useState(true)
@@ -91,14 +92,21 @@ export default function NewSetlistPage() {
 
   const handleAddSong = (song: Song) => {
     if (!selectedSongs.find((s) => s.song_id === song.id)) {
-      setSelectedSongs([...selectedSongs, { song_id: song.id, song }])
+      setSelectedSongs([...selectedSongs, { song_id: song.id, song, youtube_url: '' }])
       setSearchQuery('')
       setSearchResults([])
     }
   }
 
+  const handleYoutubeUrlChange = (songId: string, url: string) => {
+    setYoutubeUrls({ ...youtubeUrls, [songId]: url })
+  }
+
   const handleRemoveSong = (songId: string) => {
     setSelectedSongs(selectedSongs.filter((s) => s.song_id !== songId))
+    const newYoutubeUrls = { ...youtubeUrls }
+    delete newYoutubeUrls[songId]
+    setYoutubeUrls(newYoutubeUrls)
   }
 
   const handleConfirm = async () => {
@@ -118,7 +126,10 @@ export default function NewSetlistPage() {
           date,
           name,
           description: description || null,
-          songs: selectedSongs.map((s) => ({ song_id: s.song_id })),
+          songs: selectedSongs.map((s) => ({
+            song_id: s.song_id,
+            youtube_url: youtubeUrls[s.song_id] || null,
+          })),
         }),
       })
 
@@ -314,24 +325,37 @@ export default function NewSetlistPage() {
                   {selectedSongs.map((item, index) => (
                     <div
                       key={item.song_id}
-                      className="flex items-center justify-between p-2 md:p-3 border border-gray-200 rounded-lg"
+                      className="p-2 md:p-3 border border-gray-200 rounded-lg space-y-2"
                     >
-                      <div className="flex-1 min-w-0">
-                        <span className="text-xs md:text-sm text-gray-500 mr-2">
-                          {index + 1}.
-                        </span>
-                        <span className="font-medium text-sm md:text-base break-words">{item.song.title}</span>
-                        <span className="text-xs md:text-sm text-gray-600 ml-2 break-words">
-                          {item.song.artist} · Key: {item.song.key}
-                        </span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs md:text-sm text-gray-500 mr-2">
+                            {index + 1}.
+                          </span>
+                          <span className="font-medium text-sm md:text-base break-words">{item.song.title}</span>
+                          <span className="text-xs md:text-sm text-gray-600 ml-2 break-words">
+                            {item.song.artist} · Key: {item.song.key}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSong(item.song_id)}
+                          className="text-red-500 hover:text-red-700 p-1 flex-shrink-0 ml-2"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveSong(item.song_id)}
-                        className="text-red-500 hover:text-red-700 p-1 flex-shrink-0 ml-2"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
+                      {/* 유튜브 링크 입력 */}
+                      <div className="flex gap-2 items-center">
+                        <Youtube className="h-4 w-4 text-red-600 flex-shrink-0" />
+                        <Input
+                          type="url"
+                          value={youtubeUrls[item.song_id] || ''}
+                          onChange={(e) => handleYoutubeUrlChange(item.song_id, e.target.value)}
+                          placeholder="유튜브 링크를 입력하세요 (선택사항)"
+                          className="flex-1 text-sm"
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
