@@ -97,13 +97,15 @@ export async function PUT(
 
   // 2) setlist_songs 업데이트 (전체 재작성)
   if (Array.isArray(songs)) {
-    // 기존 곡 모두 삭제
-    const { error: deleteError } = await supabase
+    // 기존 곡 모두 삭제 (RLS 우회를 위해 관리자 클라이언트 사용)
+    const adminClient = createAdminClient()
+    const { error: deleteError } = await adminClient
       .from('setlist_songs')
       .delete()
       .eq('setlist_id', id)
 
     if (deleteError) {
+      console.error('Delete error:', deleteError)
       return NextResponse.json({ error: deleteError.message }, { status: 500 })
     }
 
