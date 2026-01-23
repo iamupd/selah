@@ -134,7 +134,7 @@ export default function SongsPage() {
                     >
                       {/* 곡 정보 - 한 줄 */}
                       <div className="flex-1 min-w-0 flex items-center gap-2">
-                        <span className="font-medium text-sm truncate">{song.title}</span>
+                        <span className="font-medium text-sm text-gray-900 truncate">{song.title}</span>
                         <span className="text-xs text-gray-400">·</span>
                         <span className="text-xs text-gray-500 truncate">{song.artist}</span>
                         <span className="text-xs text-gray-400">·</span>
