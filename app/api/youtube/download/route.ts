@@ -8,6 +8,49 @@ export const maxDuration = 300
 
 type DownloadMode = 'video' | 'audio'
 
+/** YouTube 봇 차단 시 — 브라우저에서 로그인한 계정의 쿠키(JSON 배열)를 서버 환경변수로 넣으면 완화되는 경우가 많습니다. */
+let youtubeAgentState: 'unset' | 'none' | ReturnType<typeof ytdl.createAgent> = 'unset'
+
+function getYoutubeAgent(): ReturnType<typeof ytdl.createAgent> | undefined {
+  if (youtubeAgentState === 'unset') {
+    const raw = process.env.YOUTUBE_COOKIES_JSON
+    if (!raw?.trim()) {
+      youtubeAgentState = 'none'
+    } else {
+      try {
+        const parsed: unknown = JSON.parse(raw)
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+          youtubeAgentState = 'none'
+        } else {
+          youtubeAgentState = ytdl.createAgent(parsed as Parameters<typeof ytdl.createAgent>[0])
+        }
+      } catch {
+        youtubeAgentState = 'none'
+      }
+    }
+  }
+  return youtubeAgentState === 'none' ? undefined : youtubeAgentState
+}
+
+function humanizeYoutubeError(message: string): string {
+  const m = message.toLowerCase()
+  if (
+    m.includes('sign in') ||
+    m.includes('not a bot') ||
+    m.includes("you're not a bot") ||
+    m.includes('confirm you') ||
+    m.includes('login required')
+  ) {
+    return (
+      'YouTube가 이 서버의 접속을 자동화(봇)로 보고 막은 상태입니다. ' +
+      '브라우저에 뜨는 “로그인”은 Selah 계정이 아니라 YouTube/Google 확인입니다. ' +
+      '배포 서버 환경변수 `YOUTUBE_COOKIES_JSON`에 YouTube에 로그인한 브라우저에서보낸 쿠키 배열(EditThisCookie 등)을 넣으면 통과되는 경우가 많습니다. ' +
+      '자세한 형식은 @distube/ytdl-core README의 Cookies Support를 참고하세요.'
+    )
+  }
+  return message
+}
+
 function asciiFileBase(videoId: string, ext: string) {
   return `${videoId}.${ext}`.replace(/[^\w.-]/g, '_')
 }
@@ -37,8 +80,11 @@ export async function POST(request: Request) {
     return Response.json({ error: '유효한 YouTube 주소가 아닙니다.' }, { status: 400 })
   }
 
+  const agent = getYoutubeAgent()
+  const ytdlOpts = agent ? { agent } : {}
+
   try {
-    const info = await ytdl.getInfo(rawUrl)
+    const info = await ytdl.getInfo(rawUrl, ytdlOpts)
     const chooseOptions =
       mode === 'audio'
         ? { quality: 'highestaudio' as const, filter: 'audioonly' as const }
@@ -75,7 +121,7 @@ export async function POST(request: Request) {
     const asciiName = asciiFileBase(videoId, ext)
     const utf8Name = `${title}.${ext}`
 
-    const stream = ytdl.downloadFromInfo(info, { ...chooseOptions, format })
+    const stream = ytdl.downloadFromInfo(info, { ...chooseOptions, format, ...ytdlOpts })
     const webStream = Readable.toWeb(stream)
 
     return new Response(webStream as unknown as BodyInit, {
@@ -86,7 +132,7 @@ export async function POST(request: Request) {
       },
     })
   } catch (e) {
-    const message = e instanceof Error ? e.message : '다운로드에 실패했습니다.'
-    return Response.json({ error: message }, { status: 502 })
+    const raw = e instanceof Error ? e.message : '다운로드에 실패했습니다.'
+    return Response.json({ error: humanizeYoutubeError(raw) }, { status: 502 })
   }
 }
