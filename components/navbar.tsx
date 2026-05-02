@@ -100,6 +100,12 @@ export default function Navbar() {
             >
               콘티
             </Link>
+            <Link
+              href="/tools/youtube"
+              className="text-xs md:text-sm font-medium text-gray-700 hover:text-blue-600 active:text-blue-700 transition-colors"
+            >
+              유튜브
+            </Link>
             
             {!loading && profile && (
               <div className="flex items-center gap-2 md:gap-3 pl-3 md:pl-4 border-l border-gray-200">

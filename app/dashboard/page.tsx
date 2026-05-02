@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Music, List, BookOpen } from "lucide-react";
+import { Music, List, BookOpen, Download } from "lucide-react";
 import { createClient } from '@/lib/supabase/client'
 
 export default function DashboardPage() {
@@ -116,7 +116,22 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        <div className="mt-8">
+        <div className="mt-8 space-y-4">
+          <Link href="/tools/youtube">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer border-gray-200 bg-white">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1 text-gray-900">YouTube 받기</h3>
+                    <p className="text-sm text-gray-600">
+                      링크를 넣고 음성 또는 영상 파일로 저장합니다
+                    </p>
+                  </div>
+                  <Download className="h-6 w-6 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
           <Link href="/guide">
             <Card className="hover:shadow-lg transition-shadow cursor-pointer border-blue-200 bg-blue-50">
               <CardContent className="pt-6">
