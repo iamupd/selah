@@ -1,5 +1,4 @@
-import { Readable } from 'node:stream'
-import ytdl from '@distube/ytdl-core'
+import { Innertube } from 'youtubei.js'
 import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
@@ -8,51 +7,77 @@ export const maxDuration = 300
 
 type DownloadMode = 'video' | 'audio'
 
-/** YouTube 봇 차단 시 — 브라우저에서 로그인한 계정의 쿠키(JSON 배열)를 서버 환경변수로 넣으면 완화되는 경우가 많습니다. */
-let youtubeAgentState: 'unset' | 'none' | ReturnType<typeof ytdl.createAgent> = 'unset'
-
-function getYoutubeAgent(): ReturnType<typeof ytdl.createAgent> | undefined {
-  if (youtubeAgentState === 'unset') {
-    const raw = process.env.YOUTUBE_COOKIES_JSON
-    if (!raw?.trim()) {
-      youtubeAgentState = 'none'
-    } else {
-      try {
-        const parsed: unknown = JSON.parse(raw)
-        if (!Array.isArray(parsed) || parsed.length === 0) {
-          youtubeAgentState = 'none'
-        } else {
-          youtubeAgentState = ytdl.createAgent(parsed as Parameters<typeof ytdl.createAgent>[0])
-        }
-      } catch {
-        youtubeAgentState = 'none'
-      }
-    }
-  }
-  return youtubeAgentState === 'none' ? undefined : youtubeAgentState
-}
-
-function humanizeYoutubeError(message: string): string {
-  const m = message.toLowerCase()
-  if (
-    m.includes('sign in') ||
-    m.includes('not a bot') ||
-    m.includes("you're not a bot") ||
-    m.includes('confirm you') ||
-    m.includes('login required')
-  ) {
-    return (
-      'YouTube가 이 서버의 접속을 자동화(봇)로 보고 막은 상태입니다. ' +
-      '브라우저에 뜨는 “로그인”은 Selah 계정이 아니라 YouTube/Google 확인입니다. ' +
-      '배포 서버 환경변수 `YOUTUBE_COOKIES_JSON`에 YouTube에 로그인한 브라우저에서보낸 쿠키 배열(EditThisCookie 등)을 넣으면 통과되는 경우가 많습니다. ' +
-      '자세한 형식은 @distube/ytdl-core README의 Cookies Support를 참고하세요.'
-    )
-  }
-  return message
-}
+const CHROME_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
 
 function asciiFileBase(videoId: string, ext: string) {
   return `${videoId}.${ext}`.replace(/[^\w.-]/g, '_')
+}
+
+/** EditThisCookie-style JSON array → `a=b; c=d` for Innertube `cookie`. */
+function getCookieHeaderFromEnv(): string | undefined {
+  const raw = process.env.YOUTUBE_COOKIES_JSON
+  if (!raw?.trim()) return undefined
+  try {
+    const arr: unknown = JSON.parse(raw)
+    if (!Array.isArray(arr)) return undefined
+    const pairs: string[] = []
+    for (const item of arr) {
+      if (
+        item &&
+        typeof item === 'object' &&
+        'name' in item &&
+        'value' in item &&
+        typeof (item as { name: unknown }).name === 'string' &&
+        typeof (item as { value: unknown }).value === 'string'
+      ) {
+        pairs.push(`${(item as { name: string }).name}=${(item as { value: string }).value}`)
+      }
+    }
+    return pairs.length ? pairs.join('; ') : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function extractVideoId(input: string): string | null {
+  const trimmed = input.trim()
+  if (/^[\w-]{11}$/.test(trimmed)) return trimmed
+  try {
+    const u = new URL(trimmed)
+    const host = u.hostname.replace(/^www\./, '')
+    if (host === 'youtu.be') {
+      const id = u.pathname.split('/').filter(Boolean)[0]
+      return id && /^[\w-]{11}$/.test(id) ? id : null
+    }
+    if (host.includes('youtube.com')) {
+      const v = u.searchParams.get('v')
+      if (v && /^[\w-]{11}$/.test(v)) return v
+      const shorts = u.pathname.match(/^\/shorts\/([\w-]{11})/)
+      if (shorts) return shorts[1]
+      const embed = u.pathname.match(/^\/embed\/([\w-]{11})/)
+      if (embed) return embed[1]
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+async function createInnertube() {
+  const cookie = getCookieHeaderFromEnv()
+  const visitor_data = process.env.YOUTUBE_VISITOR_DATA?.trim() || undefined
+  const po_token = process.env.YOUTUBE_PO_TOKEN?.trim() || undefined
+
+  return Innertube.create({
+    lang: 'ko',
+    location: 'KR',
+    user_agent: CHROME_UA,
+    generate_session_locally: true,
+    ...(cookie ? { cookie } : {}),
+    ...(visitor_data ? { visitor_data } : {}),
+    ...(po_token ? { po_token } : {}),
+  })
 }
 
 export async function POST(request: Request) {
@@ -76,23 +101,23 @@ export async function POST(request: Request) {
   const rawUrl = typeof body.url === 'string' ? body.url.trim() : ''
   const mode: DownloadMode = body.mode === 'audio' ? 'audio' : 'video'
 
-  if (!rawUrl || !ytdl.validateURL(rawUrl)) {
+  const videoId = extractVideoId(rawUrl)
+  if (!videoId) {
     return Response.json({ error: '유효한 YouTube 주소가 아닙니다.' }, { status: 400 })
   }
 
-  const agent = getYoutubeAgent()
-  const ytdlOpts = agent ? { agent } : {}
+  const downloadOpts =
+    mode === 'audio'
+      ? { type: 'audio' as const, quality: 'best' as const, format: 'any' as const }
+      : { type: 'video+audio' as const, quality: 'best' as const, format: 'mp4' as const }
 
   try {
-    const info = await ytdl.getInfo(rawUrl, ytdlOpts)
-    const chooseOptions =
-      mode === 'audio'
-        ? { quality: 'highestaudio' as const, filter: 'audioonly' as const }
-        : { quality: 'highest' as const, filter: 'audioandvideo' as const }
+    const yt = await createInnertube()
+    const info = await yt.getBasicInfo(videoId)
 
     let format
     try {
-      format = ytdl.chooseFormat(info.formats, chooseOptions)
+      format = info.chooseFormat(downloadOpts)
     } catch {
       return Response.json(
         {
@@ -104,27 +129,19 @@ export async function POST(request: Request) {
         { status: 422 },
       )
     }
-
     const mime =
-      typeof format.mimeType === 'string'
-        ? format.mimeType.split(';')[0]?.trim() || 'application/octet-stream'
+      typeof format.mime_type === 'string'
+        ? format.mime_type.split(';')[0]?.trim() || 'application/octet-stream'
         : 'application/octet-stream'
+    const ext = mime.includes('webm') ? 'webm' : mime.includes('mp4') ? 'mp4' : 'bin'
 
-    const ext =
-      (typeof format.container === 'string' && format.container) ||
-      (mime.includes('webm') ? 'webm' : mime.includes('mp4') ? 'mp4' : 'bin')
-
-    const videoId = info.videoDetails.videoId
-    const title = info.videoDetails.title
-      .replace(/["\r\n]/g, ' ')
-      .slice(0, 120)
+    const title = (info.basic_info.title ?? 'video').replace(/["\r\n]/g, ' ').slice(0, 120)
     const asciiName = asciiFileBase(videoId, ext)
     const utf8Name = `${title}.${ext}`
 
-    const stream = ytdl.downloadFromInfo(info, { ...chooseOptions, format, ...ytdlOpts })
-    const webStream = Readable.toWeb(stream)
+    const stream = await info.download(downloadOpts)
 
-    return new Response(webStream as unknown as BodyInit, {
+    return new Response(stream, {
       headers: {
         'Content-Type': mime,
         'Content-Disposition': `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(utf8Name)}`,
@@ -132,7 +149,7 @@ export async function POST(request: Request) {
       },
     })
   } catch (e) {
-    const raw = e instanceof Error ? e.message : '다운로드에 실패했습니다.'
-    return Response.json({ error: humanizeYoutubeError(raw) }, { status: 502 })
+    const message = e instanceof Error ? e.message : '다운로드에 실패했습니다.'
+    return Response.json({ error: message }, { status: 502 })
   }
 }
